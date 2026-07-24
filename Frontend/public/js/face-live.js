@@ -286,7 +286,9 @@
       displayFaces = syncDisplayFaces;
       lastNonEmptyFaces = syncDisplayFaces;
       lastNonEmptyFacesAt = now;
-    } else if (!detWs && now - lastNonEmptyFacesAt >= FACE_HOLD_MS) {
+    } else if (now - lastNonEmptyFacesAt >= FACE_HOLD_MS) {
+      // Empty WebSocket packets are authoritative too. Previously the detWs
+      // guard kept the last non-empty face forever until another face arrived.
       displayFaces = [];
       syncDisplayFaces = [];
     }
