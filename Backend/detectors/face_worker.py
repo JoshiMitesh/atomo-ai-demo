@@ -342,19 +342,19 @@ def deduplicate_faces(faces, iou_threshold=0.35, containment_threshold=0.75,
     return np.asarray(kept, dtype=faces.dtype)
 
 
-def is_usable_live_face(frame, face, min_confidence=0.82):
+def is_usable_live_face(frame, face, min_confidence=0.74):
     """Reject occluded, profile, blurry and non-face YuNet detections."""
     x, y, w, h = [float(v) for v in face[:4]]
     confidence = float(face[-1])
-    if confidence < min_confidence or w < 24 or h < 24:
+    if confidence < min_confidence or w < 18 or h < 18:
         return False
     aspect = w / max(h, 1.0)
-    if aspect < 0.68 or aspect > 1.35:
+    if aspect < 0.55 or aspect > 1.55:
         return False
 
     landmarks = np.asarray(face[4:14], dtype=np.float32).reshape(5, 2)
     right_eye, left_eye, nose, right_mouth, left_mouth = landmarks
-    margin_x, margin_y = 0.08 * w, 0.08 * h
+    margin_x, margin_y = 0.18 * w, 0.18 * h
     for lx, ly in landmarks:
         if lx < x - margin_x or lx > x + w + margin_x:
             return False
@@ -364,13 +364,13 @@ def is_usable_live_face(frame, face, min_confidence=0.82):
     eye_distance = abs(float(left_eye[0] - right_eye[0]))
     eye_y = float((left_eye[1] + right_eye[1]) / 2.0)
     mouth_y = float((left_mouth[1] + right_mouth[1]) / 2.0)
-    if eye_distance < 0.18 * w or eye_distance > 0.72 * w:
+    if eye_distance < 0.10 * w or eye_distance > 0.82 * w:
         return False
-    if abs(float(left_eye[1] - right_eye[1])) > 0.24 * h:
+    if abs(float(left_eye[1] - right_eye[1])) > 0.38 * h:
         return False
-    if not (eye_y + 0.04 * h < float(nose[1]) < mouth_y):
+    if not (eye_y - 0.08 * h < float(nose[1]) < mouth_y + 0.08 * h):
         return False
-    if mouth_y - float(nose[1]) < 0.035 * h:
+    if mouth_y < eye_y + 0.08 * h:
         return False
 
     ih, iw = frame.shape[:2]
@@ -380,10 +380,10 @@ def is_usable_live_face(frame, face, min_confidence=0.82):
         return False
     crop = frame[y1:y2, x1:x2]
     gray = cv.cvtColor(crop, cv.COLOR_BGR2GRAY)
-    if gray.size == 0 or cv.Laplacian(gray, cv.CV_64F).var() < 24.0:
+    if gray.size == 0 or cv.Laplacian(gray, cv.CV_64F).var() < 8.0:
         return False
     mean_light = float(gray.mean())
-    return 22.0 <= mean_light <= 238.0
+    return 10.0 <= mean_light <= 248.0
 
 
 def crop_and_save_face(img, box, crops_dir):
@@ -738,7 +738,7 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
     
     last_event_time = {}
     # Keep enough detail in tripwire mode to separate nearby/smaller faces.
-    det_width = 480 if line_crossing_enabled else 320
+    det_width = 480
     recent_events = []
 
     # Face tracking state (line-crossing mode)
@@ -755,7 +755,7 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
     STD_TRACK_MAX_DIST_FACTOR = 0.12   # fraction of frame width used as match radius
     STD_TRACK_STALE_S = 1.5            # survive missed frames at the 2-FPS analysis rate
     STD_RECOGNIZE_RETRY_S = 2.0        # re-attempt recognition for an unknown track this often
-    FACE_DETECTION_MIN_CONF = 0.82
+    FACE_DETECTION_MIN_CONF = 0.74
 
     last_frame_time = 0.0
     last_line_mode = bool(line_crossing_enabled)
