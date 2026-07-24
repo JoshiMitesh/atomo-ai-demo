@@ -121,6 +121,50 @@ async function syncPersonEnrollToBoard(person, imageBase64) {
   }
 }
 
+async function syncClusterEmbeddingsToBoard(person, embeddings, crops = []) {
+  if (!(await faceClient.isReachable())) {
+    return {
+      ok: false,
+      error: 'Vision board offline — start backend on board',
+      boardReachable: false,
+    };
+  }
+  const validEmbeddings = (Array.isArray(embeddings) ? embeddings : [])
+    .filter(e => Array.isArray(e) && e.length >= 64);
+  if (!validEmbeddings.length) {
+    return { ok: false, boardReachable: true, error: 'Cluster has no valid embeddings' };
+  }
+
+  try {
+    const boardPersonId = await ensureBoardPerson(person);
+    const result = await faceClient.apiJson(
+      `/api/face/persons/${encodeURIComponent(boardPersonId)}/enroll/embeddings`,
+      {
+        method: 'POST',
+        body: {
+          embeddings: validEmbeddings,
+          images: crops.map(c => c?.jpegBase64 || null),
+        },
+      },
+    );
+    return {
+      ok: true,
+      boardReachable: true,
+      backendPersonId: boardPersonId,
+      embeddingCount: result.embedding_count || 0,
+      addedCount: result.added_count ?? validEmbeddings.length,
+      suppliedCount: result.supplied_count ?? validEmbeddings.length,
+      message: result.message || 'Cluster embeddings added on board',
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      boardReachable: true,
+      error: err.message || 'Could not enroll cluster embeddings on board',
+    };
+  }
+}
+
 async function verifyPersonOnBoard(person) {
   const localEmb = person.embeddingCount || 0;
   const reachable = await faceClient.isReachable();
@@ -204,6 +248,7 @@ async function resyncPersonToBoard(person, faceStore) {
 
 module.exports = {
   syncPersonEnrollToBoard,
+  syncClusterEmbeddingsToBoard,
   verifyPersonOnBoard,
   resyncPersonToBoard,
   isReachable,
