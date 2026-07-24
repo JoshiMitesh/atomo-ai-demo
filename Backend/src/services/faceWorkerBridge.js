@@ -18,8 +18,8 @@ const PYTHON_BIN    = process.env.PYTHON_BIN || process.env.PYTHON_EXECUTABLE ||
 // resolution (see VideoGrabber.run(): width=640, height=360) — every box
 // coordinate it emits is in this fixed space, and it no longer sends
 // frame_width/frame_height per-event like the old worker did.
-const STREAM_FRAME_WIDTH  = 640;
-const STREAM_FRAME_HEIGHT = 360;
+const STREAM_FRAME_WIDTH  = 1280;
+const STREAM_FRAME_HEIGHT = 720;
 
 // How long a detected face is kept around waiting for its matching
 // stream_recognize event (or just kept visible after being recognized)
@@ -162,6 +162,7 @@ class FaceWorkerBridge extends EventEmitter {
         is_known:      false,
         match:         null,
         score:         0,
+        detection_score: Number(msg.detection_score || 0),
         embedding:     null,
         gender:        null, // no longer produced by this worker build
         status:        'pending',
@@ -191,6 +192,7 @@ class FaceWorkerBridge extends EventEmitter {
           is_known: false,
           match: null,
           score: 0,
+          detection_score: 0,
           embedding: null,
           gender: null,
           status: 'tracking',
