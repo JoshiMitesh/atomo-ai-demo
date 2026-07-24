@@ -241,6 +241,7 @@ router.post('/stream/start', requireAuth, async (req, res) => {
     // PUT /stream/line-config/:camera_id first). If omitted, whatever
     // was last saved for this camera (or the disabled default) is used.
     line_crossing_enabled, line_y, line_direction, line_x_start, line_x_end,
+    line_x1, line_y1, line_x2, line_y2,
   } = req.body || {};
   if (!camera_id) return res.status(400).json({ error: 'camera_id required' });
 
@@ -251,7 +252,10 @@ router.post('/stream/start', requireAuth, async (req, res) => {
   try { caps = parseCapabilities(req.body); }
   catch (e) { return res.status(400).json({ error: e.message }); }
 
-  const hasInlineLineConfig = [line_crossing_enabled, line_y, line_direction, line_x_start, line_x_end]
+  const hasInlineLineConfig = [
+    line_crossing_enabled, line_y, line_direction, line_x_start, line_x_end,
+    line_x1, line_y1, line_x2, line_y2,
+  ]
     .some(v => v !== undefined);
 
   let lineConfig;
@@ -260,6 +264,7 @@ router.post('/stream/start', requireAuth, async (req, res) => {
       ? lineConfigStore.setConfig(camera_id, {
           enabled: line_crossing_enabled, line_y, direction: line_direction,
           x_start: line_x_start, x_end: line_x_end,
+          line_x1, line_y1, line_x2, line_y2,
         })
       : lineConfigStore.getConfig(camera_id);
   } catch (e) { return res.status(400).json({ error: e.message }); }
