@@ -788,6 +788,46 @@ app.put('/api/face/board/persons/:personId', async (req, res) => {
   }
 });
 
+app.delete('/api/face/database/all', async (req, res) => {
+  const sess = resolveSession(req);
+  if (!sess) return res.status(401).json({ error: 'You must be signed in.' });
+  try {
+    const { apiJson } = require('./lib/vision-api');
+    const board = await apiJson('/api/face/persons', { method: 'DELETE' });
+    const localIds = faceStore.listPersons().map(p => p.id);
+    const local = faceStore.bulkDeletePersons(localIds);
+    return res.json({
+      ok: true,
+      boardDeleted: board.deleted || 0,
+      localDeleted: Array.isArray(local.deleted) ? local.deleted.length : localIds.length,
+      message: 'All enrolled identities deleted',
+    });
+  } catch (err) {
+    return res.status(err.status || 503).json({ error: err.message || 'Could not delete identity database' });
+  }
+});
+
+app.delete('/api/face/clusters/all', async (req, res) => {
+  const sess = resolveSession(req);
+  if (!sess) return res.status(401).json({ error: 'You must be signed in.' });
+  try {
+    const { apiJson } = require('./lib/vision-api');
+    const board = await apiJson('/api/face/clusters', { method: 'DELETE' });
+    const localClusters = faceClusterStore.listClusters();
+    for (const cluster of localClusters) {
+      faceClusterStore.deleteCluster(cluster.id || cluster.cluster_id);
+    }
+    return res.json({
+      ok: true,
+      boardDeleted: board.deleted || 0,
+      localDeleted: localClusters.length,
+      message: 'All unknown-face clusters deleted',
+    });
+  } catch (err) {
+    return res.status(err.status || 503).json({ error: err.message || 'Could not delete clusters' });
+  }
+});
+
 /** Local cluster crop JPEGs (and board fallback). */
 app.get('/api/face/crops/:filename', async (req, res) => {
   const sess = resolveSession(req);
