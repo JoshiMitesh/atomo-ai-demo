@@ -36,6 +36,7 @@ const faceStore = require('./lib/face-store');
 const faceBoardSync = require('./lib/face-board-sync');
 const faceClusterStore = require('./lib/face-cluster-store');
 const eventBroadcast = require('./lib/event-broadcast');
+const visionApi = require('./lib/vision-api');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -97,6 +98,23 @@ function ensureStandaloneSessionRole(sessRecord) {
 
 function sendProxy(res, { status, data }) {
   return res.status(status).json(data);
+}
+
+async function proxyVisionJson(res, pathOrUrl, options = {}) {
+  try {
+    const response = await visionApi.apiFetch(pathOrUrl, options);
+    const contentType = response.headers.get('content-type') || 'application/json';
+    const body = Buffer.from(await response.arrayBuffer());
+    res.status(response.status);
+    res.set('Content-Type', contentType);
+    return res.send(body);
+  } catch (err) {
+    const status = Number(err.status) || (err.code === 'VISION_API_UNREACHABLE' ? 503 : 502);
+    return res.status(status).json({
+      error: err.message || 'Vision backend request failed',
+      backendPath: pathOrUrl,
+    });
+  }
 }
 
 function validateOnboardingEmail(sessRecord, formEmail) {
@@ -1272,6 +1290,74 @@ app.get('/api/system/stats', async (req, res) => {
   }
 });
 
+// Compatibility bridge for functionality that existed in the original
+// frontend. The browser authenticates with the dashboard session; this server
+// adds the Backend JWT and relays the final Backend response.
+app.get('/api/models', (req, res) => {
+  if (!resolveSession(req)) return res.status(401).json({ error: 'You must be signed in.' });
+  return proxyVisionJson(res, '/api/models');
+});
+
+app.get('/api/models/:id', (req, res) => {
+  if (!resolveSession(req)) return res.status(401).json({ error: 'You must be signed in.' });
+  return proxyVisionJson(res, `/api/models/${encodeURIComponent(req.params.id)}`);
+});
+
+app.post('/api/models/:id/validate', (req, res) => {
+  if (!resolveSession(req)) return res.status(401).json({ error: 'You must be signed in.' });
+  return proxyVisionJson(res, `/api/models/${encodeURIComponent(req.params.id)}/validate`, {
+    method: 'POST',
+    body: req.body || {},
+  });
+});
+
+app.post('/api/models/:id/test', (req, res) => {
+  if (!resolveSession(req)) return res.status(401).json({ error: 'You must be signed in.' });
+  return proxyVisionJson(res, `/api/models/${encodeURIComponent(req.params.id)}/test`, {
+    method: 'POST',
+    body: req.body || {},
+  });
+});
+
+app.delete('/api/models/:id', (req, res) => {
+  if (!resolveSession(req)) return res.status(401).json({ error: 'You must be signed in.' });
+  return proxyVisionJson(res, `/api/models/${encodeURIComponent(req.params.id)}`, {
+    method: 'DELETE',
+  });
+});
+
+app.get('/api/events', (req, res) => {
+  if (!resolveSession(req)) return res.status(401).json({ error: 'You must be signed in.' });
+  const limit = Math.max(1, Math.min(1000, Number(req.query.limit) || 100));
+  return proxyVisionJson(res, `/api/events?limit=${limit}`);
+});
+
+app.post('/api/events/:eventId/move', (req, res) => {
+  if (!resolveSession(req)) return res.status(401).json({ error: 'You must be signed in.' });
+  return proxyVisionJson(res, `/api/events/${encodeURIComponent(req.params.eventId)}/move`, {
+    method: 'POST',
+    body: req.body || {},
+  });
+});
+
+app.delete('/api/events', (req, res) => {
+  if (!resolveSession(req)) return res.status(401).json({ error: 'You must be signed in.' });
+  return proxyVisionJson(res, '/api/events', { method: 'DELETE' });
+});
+
+app.get('/api/settings/backend', (req, res) => {
+  if (!resolveSession(req)) return res.status(401).json({ error: 'You must be signed in.' });
+  return proxyVisionJson(res, '/api/settings');
+});
+
+app.post('/api/settings/backend', (req, res) => {
+  if (!resolveSession(req)) return res.status(401).json({ error: 'You must be signed in.' });
+  return proxyVisionJson(res, '/api/settings', {
+    method: 'POST',
+    body: req.body || {},
+  });
+});
+
 app.get('/api/cameras', (req, res) => {
   const sess = resolveSession(req);
   if (!sess) return res.status(401).json({ error: 'You must be signed in.' });
@@ -1327,7 +1413,23 @@ app.get('/api/cameras/:id/live', async (req, res) => {
     }
   }
 
-  const payload = getLiveViewPayload(camera);
+  let backendHealth = null;
+  if (camera.backendId) {
+    try {
+      backendHealth = await visionApi.apiJson(
+        `/api/cameras/${encodeURIComponent(camera.backendId)}/health`,
+      );
+    } catch {
+      try {
+        backendHealth = await visionApi.apiJson(
+          `/api/cameras/${encodeURIComponent(camera.backendId)}`,
+        );
+      } catch {
+        backendHealth = null;
+      }
+    }
+  }
+  const payload = getLiveViewPayload(camera, backendHealth);
   camLog.logLiveSync(payload.camera || camera, payload.preview || {}, {
     sync: req.query.sync === '1',
     syncError,
@@ -1662,10 +1764,32 @@ app.delete('/api/cameras/:id', async (req, res) => {
     console.warn('[cameras] purge alerts failed:', err.message);
   }
 
+  // Delete the authoritative Backend camera as well. Previously only the
+  // dashboard record was removed, leaving MediaMTX paths and workers alive.
+  let backendDeleteError = null;
+  if (camera.backendId) {
+    try {
+      await visionApi.apiJson(`/api/cameras/${encodeURIComponent(camera.backendId)}`, {
+        method: 'DELETE',
+      });
+    } catch (err) {
+      // A missing backend record is already the desired final state.
+      if (err.status !== 404) backendDeleteError = err.message || String(err);
+    }
+  }
+
+  try {
+    await unregisterLocalCameraPath(camera.id);
+  } catch {
+    /* optional local preview path */
+  }
+
   const removed = cameraStore.removeCamera(req.params.id);
   if (!removed) return res.status(404).json({ error: 'Camera not found.' });
   return res.json({
     ok: true,
+    backendDeleted: !backendDeleteError,
+    backendDeleteError,
     purged: purgeStats,
     stats: cameraStore.cameraStats(),
     message: 'Camera deleted — old events and clusters for this camera were cleared',
@@ -2254,20 +2378,6 @@ async function startServer() {
         wss.handleUpgrade(req, socket, head, (ws) => {
           const slug = url.searchParams.get('slug') || 'person';
           eventBroadcast.addClient(ws, slug);
-        });
-        return;
-      }
-      if (url.pathname === '/ws/face-live') {
-        wss.handleUpgrade(req, socket, head, (ws) => {
-          const cameraId = url.searchParams.get('cameraId');
-          faceLive.addStreamClient(ws, cameraId);
-        });
-        return;
-      }
-      if (url.pathname === '/ws/person-live') {
-        wss.handleUpgrade(req, socket, head, (ws) => {
-          const cameraId = url.searchParams.get('cameraId');
-          personLive.addStreamClient(ws, cameraId);
         });
         return;
       }

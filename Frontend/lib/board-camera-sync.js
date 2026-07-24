@@ -25,6 +25,10 @@ function streamUrlOf(camera) {
   return String(camera?.rtspUrl || camera?.url || camera?.streamUrl || '').trim();
 }
 
+function localPlaybackEnabled() {
+  return /^(1|true|yes|on)$/i.test(String(process.env.FRONTEND_LOCAL_MEDIAMTX || ''));
+}
+
 function normalizeForCompare(url) {
   return String(url || '').trim().replace(/\/+$/, '').toLowerCase();
 }
@@ -59,22 +63,25 @@ function mediaFields(backendId, source = {}) {
   const rtspPort = Number(process.env.MEDIAMTX_RTSP_PORT) || 8554;
   const hlsPort = Number(process.env.MEDIAMTX_HLS_PORT) || 8888;
   const whepPort = Number(process.env.MEDIAMTX_WEBRTC_PORT) || 8889;
+  const storedWhep = localPlaybackEnabled() ? source.whepUrl : null;
+  const storedHls = localPlaybackEnabled() ? source.hlsUrl : null;
+  const storedRtsp = localPlaybackEnabled() ? source.localRtsp : null;
 
   return {
     backendId,
     whepUrl: normalizeMediaUrl(
-      source.whepUrl
-        || source.whep_url
+      source.whep_url
+        || storedWhep
         || source.webrtc_url
         || `${protocol}://${host}:${whepPort}/${backendId}/whep`,
     ),
     hlsUrl: normalizeMediaUrl(
-      source.hlsUrl
-        || source.hls_url
+      source.hls_url
+        || storedHls
         || `${protocol}://${host}:${hlsPort}/${backendId}/index.m3u8`,
     ),
-    localRtsp: source.localRtsp
-      || source.local_rtsp
+    localRtsp: source.local_rtsp
+      || storedRtsp
       || `rtsp://${host}:${rtspPort}/${backendId}`,
     backendSyncedAt: new Date().toISOString(),
   };
@@ -260,7 +267,7 @@ async function ensureBoardCamera(camera, options = {}) {
       });
       result = started.camera || mapped;
     }
-    if (options.localPlayback === false) return result;
+    if (options.localPlayback === false || !localPlaybackEnabled()) return result;
     return attachLocalPlayback(result, {
       force: options.forceLocalPlayback === true,
     });
@@ -307,7 +314,7 @@ async function ensureBoardCamera(camera, options = {}) {
         });
         result = started.camera || synced;
       }
-      if (options.localPlayback === false) return result;
+      if (options.localPlayback === false || !localPlaybackEnabled()) return result;
       return attachLocalPlayback(result, {
         force: options.forceLocalPlayback === true,
       });
@@ -315,7 +322,7 @@ async function ensureBoardCamera(camera, options = {}) {
       console.warn('[board-camera-sync] sync failed:', err.message);
       // Camera viewing is independent from inference.  Preserve the original
       // frontend behaviour even while the remote vision API is unavailable.
-      if (options.localPlayback === false) return camera;
+      if (options.localPlayback === false || !localPlaybackEnabled()) return camera;
       return attachLocalPlayback(camera, {
         force: options.forceLocalPlayback === true,
       });
@@ -337,7 +344,7 @@ async function resyncBoardCamera(cameraId) {
     force: true,
     startStream: true,
     forceStreamRestart: true,
-    forceLocalPlayback: true,
+    forceLocalPlayback: localPlaybackEnabled(),
   });
   return {
     ok: Boolean(synced?.backendId),
@@ -377,12 +384,12 @@ async function syncAllCamerasToBoard(options = {}) {
         // Server startup must recreate MediaMTX paths even when mappings were
         // persisted from the previous run.
         forceStreamRestart: options.forceStreamRestart !== false,
-        forceLocalPlayback: options.forceLocalPlayback !== false,
+        forceLocalPlayback: localPlaybackEnabled() && options.forceLocalPlayback !== false,
       });
       // Detection APIs and browser playback have independent health.  Keep
       // both in the result so startup logs expose the exact failing side.
       const backendOk = Boolean(synced?.backendId) && !synced?.backendStreamError;
-      const playbackOk = synced?.localMediaReady !== false;
+      const playbackOk = !localPlaybackEnabled() || synced?.localMediaReady !== false;
       const ok = backendOk && playbackOk;
       results.push({
         cameraId: camera.id,

@@ -115,8 +115,51 @@ function getPreviewConfig(camera) {
   };
 }
 
-function getLiveAnalytics(camera) {
+function getLiveAnalytics(camera, backendHealth = null) {
   const v = camera.validation || {};
+  if (backendHealth && typeof backendHealth === 'object') {
+    const fps = Number(backendHealth.fps ?? camera.fps ?? v.fps ?? 0);
+    const latencyMs = Number(
+      backendHealth.latency_ms
+      ?? backendHealth.latencyMs
+      ?? camera.latency_ms
+      ?? 0,
+    );
+    return {
+      timestamp: new Date().toISOString(),
+      fps,
+      fpsTarget: Number(camera.fpsLimit) || fps,
+      bitrateMbps: Number(backendHealth.bitrate_mbps ?? backendHealth.bitrateMbps ?? 0),
+      latencyMs,
+      jitterMs: Number(backendHealth.jitter_ms ?? backendHealth.jitterMs ?? 0),
+      packetLossPercent: Number(
+        backendHealth.packet_loss_percent
+        ?? backendHealth.packetLossPercent
+        ?? (backendHealth.drop_rate != null ? Number(backendHealth.drop_rate) * 100 : 0),
+      ),
+      codec: backendHealth.codec || camera.codec || v.codec || null,
+      resolution: backendHealth.resolution || camera.resolution || v.resolution || null,
+      hasAudio: backendHealth.has_audio ?? backendHealth.hasAudio ?? false,
+      uptimeSeconds: Number(backendHealth.uptime_seconds ?? backendHealth.uptimeSeconds ?? 0),
+      framesReceived: Number(backendHealth.frames_received ?? backendHealth.framesReceived ?? 0),
+      frameDrops: Number(backendHealth.frame_drops ?? backendHealth.frameDrops ?? 0),
+      streamHealth: backendHealth.stream_health
+        || backendHealth.streamHealth
+        || (backendHealth.reachable === false ? 'poor' : 'good'),
+      recording: Boolean(camera.recording),
+      aiEventsLastHour: Number(backendHealth.ai_events_last_hour ?? 0),
+      alertsToday: Number(backendHealth.alerts_today ?? 0),
+      reconnectCount: Number(
+        backendHealth.reconnect_count ?? backendHealth.reconnectCount ?? camera.reconnect_count ?? 0,
+      ),
+      bandwidthInKbps: Number(
+        backendHealth.bandwidth_in_kbps ?? backendHealth.bandwidth_kbps ?? 0,
+      ),
+      bandwidthOutKbps: Number(backendHealth.bandwidth_out_kbps ?? 0),
+      _fromBoard: true,
+    };
+  }
+
   const fpsTarget = Number(camera.fpsLimit) || v.fps || 25;
   const fps = jitter(fpsTarget, 1.2, 1, fpsTarget);
   const latencyMs = jitter(v.latencyMs || 128, 18, 40, 400);
@@ -152,11 +195,11 @@ function getLiveAnalytics(camera) {
   };
 }
 
-function getLiveViewPayload(camera) {
+function getLiveViewPayload(camera, backendHealth = null) {
   return {
     camera: sanitizeCamera(camera),
     preview: getPreviewConfig(camera),
-    analytics: getLiveAnalytics(camera),
+    analytics: getLiveAnalytics(camera, backendHealth),
   };
 }
 

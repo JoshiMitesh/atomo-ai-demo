@@ -7,7 +7,7 @@
  *   VISION_API_URL / BACKEND_API_URL
  *   VISION_API_TOKEN
  *   VISION_API_USERNAME (default: admin)
- *   VISION_API_PASSWORD (default: admin123)
+ *   VISION_API_PASSWORD (required unless VISION_API_TOKEN is set)
  *   VISION_API_TIMEOUT_MS (default: 10000)
  *   VISION_HEALTH_TIMEOUT_MS (default: 2500)
  */
@@ -39,8 +39,15 @@ function createVisionClient(baseUrl, options = {}) {
     baseUrl || process.env.VISION_API_URL || process.env.BACKEND_API_URL,
   );
   const label = options.label || 'vision';
-  const username = options.username || process.env.VISION_API_USERNAME || 'admin';
-  const password = options.password || process.env.VISION_API_PASSWORD || 'admin123';
+  const username = options.username
+    || process.env.VISION_API_USERNAME
+    || process.env.BACKEND_API_USERNAME
+    || process.env.BACKEND_API_USER
+    || 'admin';
+  const password = options.password
+    || process.env.VISION_API_PASSWORD
+    || process.env.BACKEND_API_PASSWORD
+    || '';
   let token = options.token || process.env.VISION_API_TOKEN || null;
   let loginPromise = null;
 
@@ -91,6 +98,13 @@ function createVisionClient(baseUrl, options = {}) {
   async function login({ force = false } = {}) {
     if (token && !force) return token;
     if (loginPromise) return loginPromise;
+    if (!password) {
+      const err = new Error(
+        'Vision API password is not configured. Set VISION_API_PASSWORD in Frontend/.env.',
+      );
+      err.code = 'VISION_API_CREDENTIALS_MISSING';
+      throw err;
+    }
 
     const pending = (async () => {
       const response = await rawFetch('/api/auth/login', {

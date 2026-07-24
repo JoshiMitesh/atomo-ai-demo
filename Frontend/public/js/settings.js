@@ -176,6 +176,7 @@
 
   let activeId = 'device';
   let profile = null;
+  let backendSettings = null;
 
   function esc(str) {
     return String(str || '')
@@ -203,19 +204,25 @@
   }
 
   function applyProfileToFields(section) {
-    if (!profile || !section.fields) return section.fields;
-    const mode = profile.clusterMode || '—';
+    if (!section.fields) return section.fields;
+    const currentProfile = profile || {};
+    const mode = currentProfile.clusterMode || '—';
     const map = {
-      deviceId: profile.deviceId || profile.id || '—',
-      deviceName: profile.deviceName || profile.organizationName || '',
-      orgName: profile.organizationName || '—',
-      accountEmail: profile.accountEmail || profile.email || '—',
-      syncStatus: profile.syncStatus || (profile.registered === false ? 'Not registered' : 'Synced'),
+      deviceId: currentProfile.deviceId || currentProfile.id || '—',
+      deviceName: currentProfile.deviceName || currentProfile.organizationName || '',
+      orgName: currentProfile.organizationName || '—',
+      accountEmail: currentProfile.accountEmail || currentProfile.email || '—',
+      syncStatus: currentProfile.syncStatus
+        || (currentProfile.registered === false ? 'Not registered' : 'Synced'),
       clusterMode: String(mode).toUpperCase(),
-      edition: profile.license?.edition || 'Enterprise',
+      edition: currentProfile.license?.edition || 'Enterprise',
       daysRemaining:
-        profile.license?.daysRemaining != null ? String(profile.license.daysRemaining) : '—',
-      currentVersion: profile.softwareVersion || profile.version || '—',
+        currentProfile.license?.daysRemaining != null
+          ? String(currentProfile.license.daysRemaining)
+          : '—',
+      currentVersion: currentProfile.softwareVersion || currentProfile.version || '—',
+      confidence:
+        backendSettings?.threshold != null ? String(backendSettings.threshold) : '',
     };
     return section.fields.map((f) => {
       if (map[f.id] != null && map[f.id] !== '') return { ...f, value: map[f.id] };
@@ -326,8 +333,33 @@
     });
   }
 
-  function handleAction(action) {
+  async function handleAction(action) {
     if (action === 'save-section') {
+      if (activeId === 'ai-models') {
+        const confidenceInput = document.querySelector('[data-field="confidence"]');
+        const threshold = Number(confidenceInput?.value);
+        if (!Number.isFinite(threshold) || threshold < 0.1 || threshold > 0.99) {
+          showToast('Confidence must be between 0.10 and 0.99');
+          return;
+        }
+        try {
+          const res = await fetch(sessionUrl('/api/settings/backend'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              threshold,
+              dis_type: backendSettings?.dis_type ?? 0,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Backend settings update failed');
+          backendSettings = data.settings || { threshold, dis_type: 0 };
+          showToast('AI confidence applied to Backend and active streams');
+        } catch (err) {
+          showToast(err.message || 'Could not update Backend settings');
+        }
+        return;
+      }
       showToast('Settings saved locally for this section');
       return;
     }
@@ -364,10 +396,20 @@
     }
   }
 
+  async function loadBackendSettings() {
+    try {
+      const res = await fetch(sessionUrl('/api/settings/backend'));
+      if (!res.ok) return;
+      backendSettings = await res.json();
+    } catch {
+      backendSettings = null;
+    }
+  }
+
   async function init() {
     const hash = (location.hash || '').replace(/^#/, '');
     if (hash && SECTIONS.some((s) => s.id === hash)) activeId = hash;
-    await loadProfile();
+    await Promise.all([loadProfile(), loadBackendSettings()]);
     render();
   }
 

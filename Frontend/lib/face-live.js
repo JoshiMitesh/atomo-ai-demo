@@ -693,6 +693,10 @@ function buildFaceStreamStartBody(backendId, state, lineFields = {}) {
 }
 
 function faceWorkerSourceOf(camera) {
+  const localMediaEnabled = /^(1|true|yes|on)$/i.test(
+    String(process.env.FRONTEND_LOCAL_MEDIAMTX || ''),
+  );
+  if (!localMediaEnabled) return '';
   if (!camera || camera.localMediaReady === false) return '';
   return String(
     camera.workerRtspUrl
@@ -711,9 +715,13 @@ async function ensureFaceWorkerMediaSource(camera, backendId, options = {}) {
   const source = faceWorkerSourceOf(camera);
   if (!id) return { ok: false, error: 'Missing backend camera ID' };
   if (!source) {
+    // Normal production path: Backend owns MediaMTX and already has the
+    // camera's original URL/local_rtsp. Do not rewrite it to a frontend-local
+    // proxy that the board may not be able to reach.
     return {
-      ok: false,
-      error: 'Local MediaMTX worker stream is not ready',
+      ok: true,
+      source: camera?.localRtsp || camera?.rtspUrl || null,
+      backendManaged: true,
     };
   }
 
