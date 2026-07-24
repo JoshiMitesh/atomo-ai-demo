@@ -245,6 +245,47 @@ def compare_face_features(feat, threshold, dis_type, thread_recog):
         return None, best_score
 
 
+def _box_overlap(box_a, box_b):
+    """Return (IoU, intersection / smaller-box area) for xywh boxes."""
+    ax1, ay1, aw, ah = [float(v) for v in box_a[:4]]
+    bx1, by1, bw, bh = [float(v) for v in box_b[:4]]
+    ax2, ay2 = ax1 + max(0.0, aw), ay1 + max(0.0, ah)
+    bx2, by2 = bx1 + max(0.0, bw), by1 + max(0.0, bh)
+
+    inter_w = max(0.0, min(ax2, bx2) - max(ax1, bx1))
+    inter_h = max(0.0, min(ay2, by2) - max(ay1, by1))
+    intersection = inter_w * inter_h
+    area_a = max(0.0, aw) * max(0.0, ah)
+    area_b = max(0.0, bw) * max(0.0, bh)
+    union = area_a + area_b - intersection
+    smaller = min(area_a, area_b)
+
+    iou = intersection / union if union > 0.0 else 0.0
+    containment = intersection / smaller if smaller > 0.0 else 0.0
+    return iou, containment
+
+
+def deduplicate_faces(faces, iou_threshold=0.45, containment_threshold=0.80):
+    """Keep one high-confidence detection for each physical face."""
+    if faces is None or len(faces) < 2:
+        return faces
+
+    order = sorted(range(len(faces)), key=lambda i: float(faces[i][-1]), reverse=True)
+    kept = []
+    for index in order:
+        candidate = faces[index]
+        duplicate = False
+        for accepted in kept:
+            iou, containment = _box_overlap(candidate[:4], accepted[:4])
+            if iou >= iou_threshold or containment >= containment_threshold:
+                duplicate = True
+                break
+        if not duplicate:
+            kept.append(candidate)
+
+    return np.asarray(kept, dtype=faces.dtype)
+
+
 def crop_and_save_face(img, box, crops_dir):
     h_img, w_img = img.shape[:2]
     x, y, w, h = box.astype(int)
@@ -611,8 +652,8 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
     # recognition is only re-queued periodically per-track to control SFace cost.
     std_tracked_faces = []
     next_std_track_id = 0
-    STD_TRACK_MAX_DIST_FACTOR = 0.10   # fraction of frame width used as match radius
-    STD_TRACK_STALE_S = 0.5            # drop a track if unseen for this long
+    STD_TRACK_MAX_DIST_FACTOR = 0.12   # fraction of frame width used as match radius
+    STD_TRACK_STALE_S = 1.5            # survive missed frames at the 2-FPS analysis rate
     STD_RECOGNIZE_RETRY_S = 2.0        # re-attempt recognition for an unknown track this often
 
     last_frame_time = 0.0
@@ -642,6 +683,7 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                 
             thread_detector.setInputSize((det_width, det_h))
             faces = thread_detector.infer(det_frame)
+            faces = deduplicate_faces(faces)
             
             detected_faces_data = []
             now = time.time()
