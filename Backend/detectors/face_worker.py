@@ -820,7 +820,7 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                                 best_match["crossed"] = True
                                 log(f"[{camera_id}] Track #{best_match['id']} crossed line Y={int(y_line)} (X span: {int(x_start)}-{int(x_end)}) in direction: {line_direction}")
                                 
-                                event_uuid = f"{camera_id}_{int(now*1000)}_{best_match['id']}"
+                                event_uuid = best_match["event_uuid"]
                                 crop_filename = crop_and_save_face(frame, box, crops_dir)
                                 
                                 # Emit DETECT immediately!
@@ -851,6 +851,7 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                     else:
                         new_tf = {
                             "id": next_track_id,
+                            "event_uuid": f"{camera_id}_line_{next_track_id}_{int(now*1000)}",
                             "last_bbox": [x, y, w, h],
                             "last_center": (cx, cy),
                             "crossed": False,
@@ -860,6 +861,20 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                         }
                         next_track_id += 1
                         current_tracked.append(new_tf)
+                        best_match = new_tf
+
+                    # Tripwire controls event creation, not the live overlay.
+                    # Publish the current tracked position on every analyzed
+                    # frame so recognition never appears frozen while waiting
+                    # for a crossing.
+                    sys.stdout.write(json.dumps({
+                        "event": "stream_box_update",
+                        "camera_id": camera_id,
+                        "camera_name": camera_name,
+                        "event_uuid": best_match["event_uuid"],
+                        "box": [int(x), int(y), int(w), int(h)]
+                    }) + "\n")
+                    sys.stdout.flush()
                         
                 # Preserve tracks long enough to match the next reduced-FPS
                 # analysis frame; otherwise every frame becomes a new face.
