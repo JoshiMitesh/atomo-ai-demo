@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AURA - Real-Time Multi-Camera Face Recognition Dashboard</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dark-mode">
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="logo-container">
+        <div class="logo-icon">
+          <i class="fa-solid fa-brain-circuit"></i>
+        </div>
+        <span class="logo-text">AURA</span>
+      </div>
+      
+      <nav class="nav-menu">
+        <a href="#" class="nav-item active" data-tab="live">
+          <i class="fa-solid fa-video"></i>
+          <span>Live Monitor</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="database">
+          <i class="fa-solid fa-users-gear"></i>
+          <span>Face Database</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="clusters">
+          <i class="fa-solid fa-folder-open"></i>
+          <span>Discovered Profiles</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="analyzer">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          <span>Photo Analyzer</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="settings">
+          <i class="fa-solid fa-sliders"></i>
+          <span>Settings</span>
+        </a>
+      </nav>
+      
+      <div class="connection-status">
+        <div class="status-dot disconnected" id="connection-dot"></div>
+        <span id="connection-text">Connecting...</span>
+      </div>
+    </aside>
+    
+    <!-- Main Application Panel -->
+    <main class="main-panel">
+      
+      <!-- Top Bar -->
+      <header class="topbar">
+        <div class="page-title">
+          <h1 id="tab-title">Live Monitor</h1>
+          <p id="tab-subtitle">Real-time surveillance stream and face recognition events.</p>
+        </div>
+        
+        <div class="system-stats">
+          <div class="stat-badge">
+            <span class="stat-label">Model</span>
+            <span class="stat-value">YuNet + SFace</span>
+          </div>
+          <div class="stat-badge">
+            <span class="stat-label">Streaming Server</span>
+            <span class="stat-value text-green">MediaMTX (RTSP)</span>
+          </div>
+        </div>
+      </header>
+      
+      <!-- Content Container -->
+      <div class="content-body">
+        
+        <!-- ============================================== -->
+        <!-- TAB 1: LIVE MONITOR -->
+        <!-- ============================================== -->
+        <section id="tab-content-live" class="tab-content active">
+          <div class="live-grid-layout">
+            
+            <!-- Left Side: Streams Grid Viewport -->
+            <div class="card feed-card">
+              <div class="card-header">
+                <h2>Multi-Stream Grid</h2>
+                <div class="header-actions">
+                  <button id="btn-open-camera-modal" class="btn btn-primary btn-sm">
+                    <i class="fa-solid fa-square-plus"></i> Add Camera Stream
+                  </button>
+                </div>
+              </div>
+              <div class="card-body feed-body grid-container-body">
+                <div class="streams-tiled-grid" id="live-streams-grid">
+                  <!-- Stream tiles populated dynamically -->
+                </div>
+                <div class="stream-placeholder" id="no-streams-active-placeholder">
+                  <i class="fa-solid fa-video-slash animate-pulse"></i>
+                  <p>No active camera streams running.</p>
+                  <span class="placeholder-tip">Add a stream in the side panel or click "Add Camera Stream" to upload a test video.</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Right Sidebar: Controls & Event Logs -->
+            <div class="monitor-sidebar">
+              
+              <!-- Camera Streams Panel -->
+              <div class="card camera-manager-card">
+                <div class="card-header">
+                  <h2>Cameras Setup</h2>
+                </div>
+                <div class="card-body camera-list-body" id="camera-controls-list">
+                  <!-- Camera controls list with active toggle switches -->
+                </div>
+              </div>
+              
+              <!-- Events List -->
+              <div class="card events-card">
+                <div class="card-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <h2>Real-Time Events</h2>
+                    <button id="btn-clear-events" class="btn btn-icon-text btn-danger-soft">
+                      <i class="fa-solid fa-trash-can"></i> Clear
+                    </button>
+                  </div>
+                  <!-- Tabs for All / Known / Unknown -->
+                  <div class="event-tabs" style="display: flex; gap: 8px; margin-top: 4px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                    <button class="event-tab-btn active" data-event-filter="all" style="background: none; border: none; color: var(--text-light); font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 4px 8px; border-radius: 4px; transition: var(--transition-smooth);">All</button>
+                    <button class="event-tab-btn" data-event-filter="known" style="background: none; border: none; color: var(--text-muted); font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 4px 8px; border-radius: 4px; transition: var(--transition-smooth);">Known</button>
+                    <button class="event-tab-btn" data-event-filter="unknown" style="background: none; border: none; color: var(--text-muted); font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 4px 8px; border-radius: 4px; transition: var(--transition-smooth);">Unknown</button>
+                  </div>
+                </div>
+                <div class="card-body events-body" id="events-list">
+                  <div class="empty-state" id="events-empty-state">
+                    <i class="fa-solid fa-bell-slash"></i>
+                    <p>No face events logged yet.</p>
+                  </div>
+                </div>
+              </div>
+              
+            </div>
+            
+          </div>
+        </section>
+        
+        <!-- ============================================== -->
+        <!-- TAB 2: FACE DATABASE (ENROLLMENT) -->
+        <!-- ============================================== -->
+        <section id="tab-content-database" class="tab-content">
+          <div class="db-actions-bar">
+            <div class="search-container">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="db-search-input" placeholder="Search person in database..." class="input-field">
+            </div>
+            <button class="btn btn-primary" id="btn-open-create-person-modal">
+              <i class="fa-solid fa-user-plus"></i> Register New Person
+            </button>
+          </div>
+          
+          <div class="persons-grid" id="persons-grid">
+            <!-- Dynamic data -->
+          </div>
+        </section>
+        
+        <!-- ============================================== -->
+        <!-- TAB 5: DISCOVERED PROFILES (AUTO-CLUSTERING) -->
+        <!-- ============================================== -->
+        <section id="tab-content-clusters" class="tab-content">
+          <div class="db-actions-bar">
+            <div class="search-container">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="cluster-search-input" placeholder="Search profile in clusters..." class="input-field">
+            </div>
+          </div>
+          
+          <div class="persons-grid" id="clusters-grid">
+            <!-- Dynamic data for clusters -->
+          </div>
+        </section>
+        
+        <!-- ============================================== -->
+        <!-- TAB 3: PHOTO ANALYZER -->
+        <!-- ============================================== -->
+        <section id="tab-content-analyzer" class="tab-content">
+          <div class="analyzer-grid">
+            
+            <!-- Upload Panel -->
+            <div class="card analyzer-upload-card">
+              <div class="card-header">
+                <h2>Analyze Static Image</h2>
+              </div>
+              <div class="card-body">
+                <div class="drop-zone" id="analyzer-dropzone">
+                  <input type="file" id="analyzer-file-input" accept="image/*" class="file-hidden">
+                  <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
+                  <p class="drop-text-primary">Drag & drop photo here</p>
+                  <p class="drop-text-secondary">or click to browse</p>
+                  <p class="drop-text-hint">JPG, PNG, WEBP (Max 10MB)</p>
+                </div>
+                
+                <div class="analysis-status-indicator hidden" id="analysis-loader">
+                  <div class="spinner"></div>
+                  <p>Running Face Detection...</p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Result Panel -->
+            <div class="card analyzer-results-card">
+              <div class="card-header">
+                <h2>Recognition Results</h2>
+              </div>
+              <div class="card-body analyzer-result-body">
+                <div class="analyzer-results-container">
+                  
+                  <div class="preview-canvas-container">
+                    <canvas id="analyzer-canvas"></canvas>
+                    <div class="canvas-placeholder" id="canvas-placeholder">
+                      <i class="fa-solid fa-image"></i>
+                      <p>Upload a photo to view overlays</p>
+                    </div>
+                  </div>
+                  
+                  <div class="matches-list-container">
+                    <h3>Faces Detected</h3>
+                    <div class="detected-faces-list" id="analyzer-matches-list">
+                      <div class="empty-state-list">
+                        <p>No face processed yet.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                </div>
+              </div>
+            </div>
+            
+          </div>
+        </section>
+        
+        <!-- ============================================== -->
+        <!-- TAB 4: SETTINGS -->
+        <!-- ============================================== -->
+        <section id="tab-content-settings" class="tab-content">
+          <div class="card settings-card">
+            <div class="card-header">
+              <h2>Face Recognition Settings</h2>
+            </div>
+            <div class="card-body settings-body">
+              
+              <!-- Metric Type -->
+              <div class="setting-group">
+                <div class="setting-info">
+                  <label class="setting-title">Distance Metric (dis_type)</label>
+                  <p class="setting-desc">Algorithm for comparing face features. Cosine similarity checks feature angles, while L2 Norm measures Euclidean distances.</p>
+                </div>
+                <div class="setting-controls">
+                  <div class="radio-toggle-group">
+                    <label class="radio-option">
+                      <input type="radio" name="dis_type" value="0" checked id="setting-dis-cosine">
+                      <span class="radio-label-btn">Cosine Similarity</span>
+                    </label>
+                    <label class="radio-option">
+                      <input type="radio" name="dis_type" value="1" id="setting-dis-l2">
+                      <span class="radio-label-btn">L2 Norm</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Threshold sliders -->
+              <div class="setting-group" id="setting-group-cosine">
+                <div class="setting-info">
+                  <label class="setting-title">Cosine Match Threshold</label>
+                  <p class="setting-desc">Faces with a similarity score greater or equal to this threshold are considered a match. Default is 0.55.</p>
+                </div>
+                <div class="setting-controls slider-control">
+                  <input type="range" id="threshold-cosine-slider" min="0.10" max="0.90" step="0.005" value="0.55">
+                  <span class="slider-value" id="val-cosine">0.55</span>
+                </div>
+              </div>
+              
+              <div class="setting-group hidden" id="setting-group-l2">
+                <div class="setting-info">
+                  <label class="setting-title">L2 Match Threshold</label>
+                  <p class="setting-desc">Faces with a distance lower or equal to this threshold are considered a match. Default is 1.128.</p>
+                </div>
+                <div class="setting-controls slider-control">
+                  <input type="range" id="threshold-l2-slider" min="0.50" max="1.80" step="0.005" value="1.128">
+                  <span class="slider-value" id="val-l2">1.128</span>
+                </div>
+              </div>
+              
+              <div class="settings-helper-card">
+                <i class="fa-solid fa-circle-info"></i>
+                <div>
+                  <h4>Accuracy Tip</h4>
+                  <p>Adding multiple photos of a person under different lighting or angles inside the <strong>Face Database</strong> enables multi-template matching, dramatically improving recognition reliability.</p>
+                </div>
+              </div>
+              
+              <div class="settings-save-row">
+                <button class="btn btn-primary" id="btn-save-settings">
+                  <i class="fa-solid fa-floppy-disk"></i> Apply Settings
+                </button>
+              </div>
+              
+            </div>
+          </div>
+        </section>
+        
+      </div>
+    </main>
+    
+  </div>
+
+  <!-- ============================================== -->
+  <!-- MODAL: ADD CAMERA / MOCK VIDEO STREAM -->
+  <!-- ============================================== -->
+  <div class="modal-overlay hidden" id="modal-add-camera">
+    <div class="modal-card modal-large">
+      <div class="modal-header">
+        <h3>Add Camera Source</h3>
+        <button class="btn-close-modal" id="btn-close-camera-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding-top: 10px;">
+        
+        <!-- Tab selector inside modal -->
+        <div class="modal-tabs">
+          <button class="modal-tab-btn active" data-modal-tab="ip-cam">
+            <i class="fa-solid fa-network-wired"></i> IP Camera (RTSP)
+          </button>
+          <button class="modal-tab-btn" data-modal-tab="mock-video">
+            <i class="fa-solid fa-file-video"></i> Mock Video (MediaMTX Loop)
+          </button>
+        </div>
+        
+        <!-- Modal Tab 1: IP Camera Form -->
+        <div class="modal-tab-content active" id="modal-tab-content-ip-cam">
+          <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 16px;">
+            <div class="form-group">
+              <label for="camera-name-input">Camera Name</label>
+              <input type="text" id="camera-name-input" placeholder="e.g. Front Door Corridor" class="input-field">
+            </div>
+            <div class="form-group">
+              <label for="camera-rtsp-input">RTSP URL</label>
+              <input type="text" id="camera-rtsp-input" placeholder="rtsp://username:password@ip:554/stream" class="input-field">
+              <p class="sub-text" style="margin-top: 4px; font-size: 0.75rem;">Ensure the Node server machine has network route access to this RTSP stream.</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Modal Tab 2: Upload Video Form -->
+        <div class="modal-tab-content" id="modal-tab-content-mock-video">
+          <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 16px;">
+            <p class="sub-text">Upload a video file (MP4, MKV, AVI). The server will start an `ffmpeg` child process to loop-stream this video file to the built-in `mediamtx` server as a local RTSP feed for instant validation testing.</p>
+            
+            <div class="drop-zone" id="mock-video-dropzone">
+              <input type="file" id="mock-video-file-input" accept="video/*" class="file-hidden">
+              <i class="fa-solid fa-film drop-icon"></i>
+              <p class="drop-text-primary">Drag & drop MP4/MKV video here</p>
+              <p class="drop-text-secondary">or click to browse from files</p>
+              <p class="drop-text-hint">The stream will auto-publish to MediaMTX</p>
+            </div>
+            
+            <div class="upload-progress-list" id="mock-upload-status"></div>
+          </div>
+        </div>
+        
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-camera-modal">Cancel</button>
+        <button class="btn btn-primary" id="btn-submit-camera-source">Register Stream</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- ============================================== -->
+  <!-- MODAL: REGISTER NEW PERSON -->
+  <!-- ============================================== -->
+  <div class="modal-overlay hidden" id="modal-create-person">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Register New Person</h3>
+        <button class="btn-close-modal" id="btn-close-create-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div class="form-group">
+            <label for="person-name-input">Full Name</label>
+            <input type="text" id="person-name-input" placeholder="e.g. John Doe" class="input-field focus">
+          </div>
+          <div class="form-group">
+            <label for="person-gender-select">Gender</label>
+            <select id="person-gender-select" class="input-field" style="width: 100%; background-color: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color); padding: 10px 14px; border-radius: 8px; font-family: inherit;">
+              <option value="Unknown" selected>Unknown</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-create-modal">Cancel</button>
+        <button class="btn btn-primary" id="btn-submit-create-person">Create Profile</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- MODAL: ENROLL DISCOVERED PROFILE (CLUSTER) -->
+  <!-- ============================================== -->
+  <div class="modal-overlay hidden" id="modal-enroll-cluster">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Enroll Profile</h3>
+        <button class="btn-close-modal" id="btn-close-enroll-cluster-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="enroll-cluster-id">
+        <div class="form-group">
+          <label for="enroll-cluster-name-input">Assign Name</label>
+          <input type="text" id="enroll-cluster-name-input" placeholder="Enter name to save profile..." class="input-field focus">
+          <p class="sub-text" style="margin-top: 8px; font-size: 0.75rem;">If the person already exists in the database, entering their exact name will merge the new faces into their existing profile.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-enroll-cluster-modal">Cancel</button>
+        <button class="btn btn-primary" id="btn-submit-enroll-cluster">Enroll & Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- MODAL: PERSON DETAILS & PHOTO MANAGER -->
+  <!-- ============================================== -->
+  <div class="modal-overlay hidden" id="modal-person-details">
+    <div class="modal-card modal-large">
+      <div class="modal-header">
+        <div>
+          <h3 id="details-person-name">Person Name</h3>
+          <span class="badge" id="details-photos-count">0 photos enrolled</span>
+        </div>
+        <button class="btn-close-modal" id="btn-close-details-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        
+        <div class="photo-management-layout">
+          <div class="photo-enroll-uploader">
+            <div class="enroll-mode-selector">
+              <button class="enroll-mode-btn active" id="btn-mode-photos"><i class="fa-solid fa-images"></i> Photos</button>
+              <button class="enroll-mode-btn" id="btn-mode-video"><i class="fa-solid fa-video"></i> Video Scan</button>
+            </div>
+            
+            <!-- Mode 1: Traditional Photo Upload -->
+            <div id="enroll-section-photos">
+              <h4>Add Facial Photos</h4>
+              <p class="sub-text">Upload photos containing a clear view of this person's face. Multiple photos improve matching reliability.</p>
+              
+              <div class="drop-zone drop-zone-small" id="details-photo-dropzone">
+                <input type="file" id="details-file-input" accept="image/*" class="file-hidden" multiple>
+                <i class="fa-solid fa-camera-retro drop-icon"></i>
+                <p class="drop-text-primary">Drag & drop images here</p>
+                <p class="drop-text-secondary">or click to upload</p>
+              </div>
+            </div>
+            
+            <!-- Mode 2: Video Scanner (Webcam & Video Uploads) -->
+            <div id="enroll-section-video" class="hidden">
+              <h4>Video Face Scan</h4>
+              <p class="sub-text">Record a 3-second webcam face scan or upload a video. Rotate your head slowly to capture multiple face angles.</p>
+              
+              <!-- Video File Uploader Zone -->
+              <div class="drop-zone drop-zone-small" id="details-video-dropzone">
+                <input type="file" id="details-video-input" accept="video/*" class="file-hidden">
+                <i class="fa-solid fa-file-video drop-icon"></i>
+                <p class="drop-text-primary">Drag & drop video here</p>
+                <p class="drop-text-secondary">or click to upload</p>
+              </div>
+              
+              <!-- Live Webcam Recording Guide Ring Interface -->
+              <div class="webcam-record-container">
+                <div class="webcam-preview-wrapper hidden" id="webcam-enroll-wrapper">
+                  <video id="webcam-enroll-preview" autoplay muted playsinline></video>
+                  <div class="webcam-overlay-guide">
+                    <div class="guide-circle"></div>
+                    <div class="recording-indicator hidden" id="enroll-recording-indicator">
+                      <div class="pulse-red-dot"></div>
+                      <span id="enroll-recording-timer">3.0s</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="webcam-controls">
+                  <button class="btn btn-secondary btn-sm" id="btn-start-enroll-webcam">
+                    <i class="fa-solid fa-camera"></i> Use Webcam Scanner
+                  </button>
+                  <button class="btn btn-danger btn-sm hidden" id="btn-record-enroll-video">
+                    <i class="fa-solid fa-circle-dot"></i> Record Face Scan
+                  </button>
+                  <button class="btn btn-secondary btn-sm hidden" id="btn-stop-enroll-webcam">
+                    <i class="fa-solid fa-video-slash"></i> Close Camera
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="upload-progress-list" id="enroll-progress-list"></div>
+          </div>
+          
+          <div class="enrolled-photos-section">
+            <h4>Enrolled Templates</h4>
+            <div class="enrolled-photos-grid" id="enrolled-photos-grid"></div>
+          </div>
+        </div>
+        
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btn-close-details-footer">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CLUSTER DETAILS & PHOTO MANAGER -->
+  <div class="modal-overlay hidden" id="modal-cluster-details">
+    <div class="modal-card modal-large" style="width: 650px;">
+      <div class="modal-header">
+        <h3 id="cluster-details-title">Discovered Profile Photos</h3>
+        <button class="btn-close-modal" id="btn-close-cluster-details-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+        <div class="cluster-photos-grid" id="cluster-photos-grid">
+          <!-- Dynamic photos with 3-dot dropdowns -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-close-cluster-details-footer">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: IMAGE PREVIEW POPUP -->
+  <div class="modal-overlay hidden" id="modal-image-preview">
+    <div class="modal-card" style="width: 500px; background: #0f111a; max-height: 90vh;">
+      <div class="modal-header">
+        <h3 id="preview-image-title">Event Photo Preview</h3>
+        <button class="btn-close-modal" id="btn-close-preview-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="display: flex; justify-content: center; align-items: center; background: #000; padding: 10px; min-height: 200px;">
+        <img id="preview-image-element" src="" style="max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 8px;" />
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
