@@ -265,7 +265,8 @@ def _box_overlap(box_a, box_b):
     return iou, containment
 
 
-def deduplicate_faces(faces, iou_threshold=0.45, containment_threshold=0.80):
+def deduplicate_faces(faces, iou_threshold=0.35, containment_threshold=0.75,
+                      center_distance_factor=0.80):
     """Keep one high-confidence detection for each physical face."""
     if faces is None or len(faces) < 2:
         return faces
@@ -277,7 +278,24 @@ def deduplicate_faces(faces, iou_threshold=0.45, containment_threshold=0.80):
         duplicate = False
         for accepted in kept:
             iou, containment = _box_overlap(candidate[:4], accepted[:4])
-            if iou >= iou_threshold or containment >= containment_threshold:
+            cx = float(candidate[0]) + float(candidate[2]) / 2.0
+            cy = float(candidate[1]) + float(candidate[3]) / 2.0
+            ax = float(accepted[0]) + float(accepted[2]) / 2.0
+            ay = float(accepted[1]) + float(accepted[3]) / 2.0
+            center_distance = np.hypot(cx - ax, cy - ay)
+            max_face_size = max(
+                float(candidate[2]), float(candidate[3]),
+                float(accepted[2]), float(accepted[3]),
+            )
+            close_neighbors = (
+                center_distance <= center_distance_factor * max_face_size
+                and iou > 0.0
+            )
+            if (
+                iou >= iou_threshold
+                or containment >= containment_threshold
+                or close_neighbors
+            ):
                 duplicate = True
                 break
         if not duplicate:
@@ -655,6 +673,7 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
     STD_TRACK_MAX_DIST_FACTOR = 0.12   # fraction of frame width used as match radius
     STD_TRACK_STALE_S = 1.5            # survive missed frames at the 2-FPS analysis rate
     STD_RECOGNIZE_RETRY_S = 2.0        # re-attempt recognition for an unknown track this often
+    FACE_DETECTION_MIN_CONF = 0.72      # reject common shoulder/background false positives
 
     last_frame_time = 0.0
     
@@ -707,7 +726,7 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                     x, y, w, h = box.astype(int)
                     conf = f_orig[-1]
                     
-                    if w < 15 or h < 15:
+                    if w < 15 or h < 15 or conf < FACE_DETECTION_MIN_CONF:
                         continue
                         
                     cx = x + w / 2
@@ -779,8 +798,8 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                                 crossed_trigger = True
                                     
                         if crossed_trigger:
-                            # Try recognizing if confidence is sufficient (>= 0.60)
-                            if conf >= 0.60:
+                            # Detection confidence was already quality-filtered above.
+                            if conf >= FACE_DETECTION_MIN_CONF:
                                 best_match["crossed"] = True
                                 log(f"[{camera_id}] Track #{best_match['id']} crossed line Y={int(y_line)} (X span: {int(x_start)}-{int(x_end)}) in direction: {line_direction}")
                                 
@@ -858,7 +877,7 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                     x, y, w, h = box.astype(int)
                     conf = f_orig[-1]
 
-                    if w < 15 or h < 15 or conf < 0.60:
+                    if w < 15 or h < 15 or conf < FACE_DETECTION_MIN_CONF:
                         continue
 
                     cx = x + w / 2
