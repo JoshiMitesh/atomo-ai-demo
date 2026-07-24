@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: atomo
+      POSTGRES_PASSWORD: atomo
+      POSTGRES_DB: atomo_control
+    ports:
+      - "5432:5432"
+    volumes:
+      - atomo_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atomo -d atomo_control"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - atomo_redis:/data
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - atomo_mqtt:/mosquitto/data
+
+volumes:
+  atomo_postgres:
+  atomo_redis:
+  atomo_mqtt:
+

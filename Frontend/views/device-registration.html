@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register Device — Atomo Forge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="registration-body">
+  <div class="registration-container">
+    <header class="registration-header">
+      <p class="step-label">STEP 2 OF 3 — DEVICE ONBOARDING</p>
+      <h1>Register your device</h1>
+      <p class="registration-subtitle">Provide your device and organization details. All fields marked <span class="required-mark">*</span> are required to complete registration.</p>
+    </header>
+
+    <div id="alert" class="alert alert-error" role="alert"></div>
+    <div id="resultPanel" class="registration-result hidden" role="status"></div>
+
+    <form id="registrationForm" class="registration-form" novalidate>
+      <!-- Device Identity -->
+      <section class="registration-section">
+        <div class="section-heading">
+          <span class="section-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </span>
+          <div>
+            <h2>Device Identity</h2>
+            <p>Hardware identification and naming</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="deviceSerial">Device Serial Number <span class="required-mark">*</span></label>
+          <input type="text" id="deviceSerial" name="deviceSerial" placeholder="e.g. APU-2026-E7K3-9F1A" readonly required>
+          <p class="field-hint">Assigned automatically — unique to this physical device.</p>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="deviceName">Device Name <span class="required-mark">*</span></label>
+            <input type="text" id="deviceName" name="deviceName" placeholder="e.g. Factory Floor Unit 1" required>
+          </div>
+          <div class="form-group">
+            <label for="deviceType">Device Type <span class="required-mark">*</span></label>
+            <select id="deviceType" name="deviceType" required>
+              <option value="">— Select device type —</option>
+              <option value="industrial-pc">Industrial PC</option>
+              <option value="edge-gateway">Edge Gateway</option>
+              <option value="iot-controller">IoT Controller</option>
+              <option value="workstation">Workstation</option>
+              <option value="server">Server</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="operatingSystem">Operating System <span class="required-mark">*</span></label>
+          <select id="operatingSystem" name="operatingSystem" required>
+            <option value="">— Select OS —</option>
+            <option value="linux">Linux</option>
+            <option value="windows">Windows</option>
+            <option value="macos">macOS</option>
+            <option value="embedded">Embedded / RTOS</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- Organization Details -->
+      <section class="registration-section">
+        <div class="section-heading">
+          <span class="section-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/></svg>
+          </span>
+          <div>
+            <h2>Organization Details</h2>
+            <p>Contact and company information</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="organizationName">Organization Name <span class="required-mark">*</span></label>
+          <input type="text" id="organizationName" name="organizationName" placeholder="Your company or team name" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="adminName">Administrator Name <span class="required-mark">*</span></label>
+            <input type="text" id="adminName" name="adminName" placeholder="Full name" required>
+          </div>
+          <div class="form-group">
+            <label for="adminRole">Role / Designation <span class="required-mark">*</span></label>
+            <input type="text" id="adminRole" name="adminRole" placeholder="e.g. IT Manager, DevOps Engineer" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" name="email" placeholder="admin@company.com">
+            <p class="field-hint" id="emailHint">Use the same email as your Atomo Forge account to complete one-time registration.</p>
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" name="phone" placeholder="+91 XXXXX XXXXX">
+          </div>
+        </div>
+      </section>
+
+      <!-- Deployment & Location -->
+      <section class="registration-section">
+        <div class="section-heading">
+          <span class="section-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </span>
+          <div>
+            <h2>Deployment &amp; Location</h2>
+            <p>Where and how this device will operate</p>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="country">Country <span class="required-mark">*</span></label>
+            <select id="country" name="country" required>
+              <option value="">— Select country —</option>
+              <option value="IN">India</option>
+              <option value="US">United States</option>
+              <option value="GB">United Kingdom</option>
+              <option value="DE">Germany</option>
+              <option value="JP">Japan</option>
+              <option value="AU">Australia</option>
+              <option value="CA">Canada</option>
+              <option value="SG">Singapore</option>
+              <option value="AE">United Arab Emirates</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="city">City <span class="required-mark">*</span></label>
+            <input type="text" id="city" name="city" placeholder="City" required>
+          </div>
+        </div>
+      </section>
+
+      <!-- Services & Connectivity -->
+      <section class="registration-section">
+        <div class="section-heading">
+          <span class="section-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+          </span>
+          <div>
+            <h2>Services &amp; Connectivity</h2>
+            <p>Remote management via MeshCentral</p>
+          </div>
+        </div>
+
+        <label class="checkbox-label">
+          <input type="checkbox" id="registerMeshCentral" name="registerMeshCentral" checked>
+          <span class="checkbox-text">
+            <strong>Register with Atomic Center (MeshCentral)</strong>
+            <small>Enable remote agent installation and device management via MeshCentral integration.</small>
+          </span>
+        </label>
+
+        <div class="form-group mesh-group-field" id="meshGroupField">
+          <label for="meshGroupName">MeshCentral Device Group Name <span class="required-mark">*</span></label>
+          <input type="text" id="meshGroupName" name="meshGroupName" placeholder="e.g. Production Floor">
+        </div>
+
+        <a href="#" id="meshDashboardLink" class="external-link" target="_blank" rel="noopener noreferrer">
+          Open MeshCentral Dashboard
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </section>
+
+      <footer class="registration-footer">
+        <div class="security-note">
+          <span class="lock-icon" aria-hidden="true">🔒</span>
+          <div>
+            <strong>All fields marked * are mandatory</strong>
+            <p>Your data is transmitted securely over the local network.</p>
+          </div>
+        </div>
+        <div class="footer-actions">
+          <button type="button" class="btn btn-secondary btn-inline" id="cancelBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-inline" id="submitBtn">Register Device</button>
+        </div>
+      </footer>
+    </form>
+  </div>
+
+  <div id="passwordModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="passwordModalTitle">
+    <div class="modal-card">
+      <h2 id="passwordModalTitle">Device password required</h2>
+      <p class="modal-subtitle">Enter your system password to install the MeshCentral agent on this device. Your login session is used for Atomic Center — no account password needed here.</p>
+      <div class="form-group">
+        <label for="sudoPassword">Device password (sudo) <span class="required-mark">*</span></label>
+        <input type="password" id="sudoPassword" autocomplete="current-password" placeholder="Your Linux/macOS login password" required>
+        <p class="field-hint">Used once to install the agent so this device appears in your Atomic Center group.</p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary btn-inline" id="passwordCancelBtn">Cancel</button>
+        <button type="button" class="btn btn-primary btn-inline" id="passwordConfirmBtn">Install &amp; Register</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="processingOverlay" class="processing-overlay hidden" aria-live="polite" aria-busy="true">
+    <div class="processing-card">
+      <div class="processing-spinner" aria-hidden="true">
+        <span class="ring ring-1"></span>
+        <span class="ring ring-2"></span>
+        <span class="ring ring-3"></span>
+        <span class="processing-icon">AF</span>
+      </div>
+      <h2>Setting up your device</h2>
+      <p id="processingStep" class="processing-step">Connecting to Atomic Center…</p>
+      <div class="processing-progress">
+        <div id="processingBar" class="processing-bar"></div>
+      </div>
+      <p class="processing-hint">This may take up to 2 minutes. Please keep this page open.</p>
+    </div>
+  </div>
+
+  <script>
+    const alertEl = document.getElementById('alert');
+    const resultPanel = document.getElementById('resultPanel');
+    const form = document.getElementById('registrationForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const registerMeshCentral = document.getElementById('registerMeshCentral');
+    const meshGroupField = document.getElementById('meshGroupField');
+    const meshDashboardLink = document.getElementById('meshDashboardLink');
+    const passwordModal = document.getElementById('passwordModal');
+    const passwordConfirmBtn = document.getElementById('passwordConfirmBtn');
+    const passwordCancelBtn = document.getElementById('passwordCancelBtn');
+    const processingOverlay = document.getElementById('processingOverlay');
+    const processingStep = document.getElementById('processingStep');
+    const processingBar = document.getElementById('processingBar');
+
+    let sessionId = sessionStorage.getItem('atomoSessionId');
+    let processingTimer = null;
+    let stepTimer = null;
+
+    const processingSteps = [
+      'Connecting to Atomic Center…',
+      'Creating or finding your device group…',
+      'Installing MeshCentral agent on this device…',
+      'Waiting for device to appear on Atomic Center…',
+      'Almost done — finishing registration…',
+    ];
+    function showAlert(message, type = 'error') {
+      alertEl.textContent = message;
+      alertEl.className = `alert alert-${type} visible`;
+    }
+
+    function hideAlert() {
+      alertEl.className = 'alert alert-error';
+    }
+
+    function renderPhases(phases) {
+      if (!phases || !phases.length) return '';
+      const items = phases.map((p) => {
+        const icon = p.status === 'done' ? '✓' : p.status === 'failed' ? '✕' : '…';
+        const cls = p.status === 'done' ? 'phase-done' : p.status === 'failed' ? 'phase-failed' : 'phase-running';
+        return `<li class="phase-item ${cls}"><span class="phase-icon">${icon}</span><span>${escapeHtml(p.message || p.label)}</span></li>`;
+      }).join('');
+      return `<ul class="phase-list">${items}</ul>`;
+    }
+
+    function showResult(data) {
+      const parts = [];
+      if (data.phases && data.phases.length) {
+        parts.push(renderPhases(data.phases));
+      }
+      if (data.meshCentral?.profileStoredOnCloud || data.profileStoredOnCloud) {
+        parts.push('<p><strong>AWS database:</strong> Device profile saved on Atomic Center.</p>');
+      } else if (data.cloudSaveError || data.meshCentral?.cloudSaveError) {
+        parts.push(`<p><strong>AWS database:</strong> ${escapeHtml(data.cloudSaveError || data.meshCentral.cloudSaveError)}</p>`);
+      }
+      if (data.meshCentral?.deviceOnline) {
+        parts.push(`<p><strong>Device online:</strong> ${escapeHtml(data.meshCentral.nodeName || 'Connected')} is visible on Atomic Center.</p>`);
+      } else if (data.partial) {
+        parts.push('<p>Registration saved. The device may take a minute to appear in Atomic Center — refresh your dashboard there.</p>');
+      }
+      if (data.meshCentral?.meshGroupName) {
+        parts.push(`<p><strong>Device group:</strong> ${escapeHtml(data.meshCentral.meshGroupName)}</p>`);
+      }
+      if (data.meshCentral?.meshGroupCreated === true) {
+        parts.push('<p>Created a new device group on Atomic Center.</p>');
+      } else if (data.meshCentral?.meshGroupCreated === false) {
+        parts.push('<p>Added to your existing device group on Atomic Center.</p>');
+      }
+      if (data.agentInstall?.ok) {
+        parts.push('<p><strong>MeshCentral agent:</strong> Installed successfully on this device.</p>');
+      } else if (data.agentInstall && !data.agentInstall.ok && !data.agentInstall.skipped) {
+        parts.push(`<p><strong>Agent install:</strong> ${escapeHtml(data.agentInstall.error || 'Failed — check device password and try again.')}</p>`);
+      } else if (data.meshCentral?.downloadUrl) {
+        parts.push(`<p><strong>Windows installer:</strong> <a href="${escapeHtml(data.meshCentral.downloadUrl)}" target="_blank" rel="noopener noreferrer">Download MeshAgent</a></p>`);
+      }
+      if (data.meshCentral?.meshCentralUrl) {
+        parts.push(`<p><a class="external-link" href="${escapeHtml(data.meshCentral.meshCentralUrl)}" target="_blank" rel="noopener noreferrer">Open Atomic Center Dashboard</a></p>`);
+      }
+      resultPanel.innerHTML = parts.join('');
+      resultPanel.className = 'registration-result visible';
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function toggleMeshGroup() {
+      const enabled = registerMeshCentral.checked;
+      meshGroupField.classList.toggle('hidden', !enabled);
+      document.getElementById('meshGroupName').required = enabled;
+    }
+
+    registerMeshCentral.addEventListener('change', toggleMeshGroup);
+    toggleMeshGroup();
+
+    async function ensureAuthenticated() {
+      try {
+        const url = sessionId
+          ? `/api/session?sessionId=${encodeURIComponent(sessionId)}`
+          : '/api/session';
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data.authenticated) {
+          sessionStorage.removeItem('atomoSessionId');
+          window.location.href = '/login';
+          return false;
+        }
+        if (data.sessionId) {
+          sessionId = data.sessionId;
+          sessionStorage.setItem('atomoSessionId', data.sessionId);
+        }
+        return data;
+      } catch {
+        showAlert('Could not verify your session. Please sign in again.');
+        return false;
+      }
+    }
+
+    async function loadPageData() {
+      const auth = await ensureAuthenticated();
+      if (!auth) return;
+
+      if (auth.onboardingComplete) {
+        window.location.replace('/dashboard');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/device/profile');
+        const data = await res.json();
+
+        if (data.meshcentralUrl) {
+          meshDashboardLink.href = data.meshcentralUrl;
+        }
+
+        const serialInput = document.getElementById('deviceSerial');
+        serialInput.value = data.profile?.deviceSerial || data.deviceSerial || '';
+
+        if (data.profile) {
+          const p = data.profile;
+          document.getElementById('deviceName').value = p.deviceName || '';
+          document.getElementById('deviceType').value = p.deviceType || '';
+          document.getElementById('operatingSystem').value = p.operatingSystem || '';
+          document.getElementById('organizationName').value = p.organizationName || '';
+          document.getElementById('adminName').value = p.adminName || '';
+          document.getElementById('adminRole').value = p.adminRole || '';
+          document.getElementById('email').value = p.email || '';
+          document.getElementById('phone').value = p.phone || '';
+          document.getElementById('country').value = p.country || '';
+          document.getElementById('city').value = p.city || '';
+          registerMeshCentral.checked = p.registerMeshCentral !== false;
+          document.getElementById('meshGroupName').value = p.meshGroupName || '';
+          toggleMeshGroup();
+        }
+
+        if (auth.username && !document.getElementById('adminName').value) {
+          document.getElementById('adminName').value = auth.username;
+        }
+
+        const emailInput = document.getElementById('email');
+        if (auth.email && !emailInput.value) {
+          emailInput.value = auth.email;
+        }
+        if (auth.email) {
+          emailInput.placeholder = auth.email;
+        }
+      } catch {
+        showAlert('Failed to load device information.');
+      }
+    }
+    function showPasswordModal() {
+      passwordModal.classList.remove('hidden');
+      document.getElementById('sudoPassword').value = '';
+      document.getElementById('sudoPassword').focus();
+    }
+
+    function needsDevicePassword() {
+      const os = document.getElementById('operatingSystem').value;
+      return os === 'linux' || os === 'embedded' || os === 'macos';
+    }
+
+    function hidePasswordModal() {
+      passwordModal.classList.add('hidden');
+    }
+
+    function showProcessingOverlay() {
+      processingOverlay.classList.remove('hidden');
+      document.body.classList.add('processing-active');
+      let stepIndex = 0;
+      processingStep.textContent = processingSteps[0];
+      processingBar.style.width = '8%';
+      stepTimer = setInterval(() => {
+        stepIndex = Math.min(stepIndex + 1, processingSteps.length - 1);
+        processingStep.textContent = processingSteps[stepIndex];
+        processingBar.style.width = `${Math.min(8 + stepIndex * 18, 92)}%`;
+      }, 8000);
+    }
+
+    function hideProcessingOverlay(success) {
+      if (stepTimer) clearInterval(stepTimer);
+      stepTimer = null;
+      processingBar.style.width = success ? '100%' : '0%';
+      setTimeout(() => {
+        processingOverlay.classList.add('hidden');
+        document.body.classList.remove('processing-active');
+      }, success ? 400 : 0);
+    }
+
+    function buildPayload(extra = {}) {
+      return {
+        sessionId,
+        deviceSerial: document.getElementById('deviceSerial').value.trim(),
+        deviceName: document.getElementById('deviceName').value.trim(),
+        deviceType: document.getElementById('deviceType').value,
+        operatingSystem: document.getElementById('operatingSystem').value,
+        organizationName: document.getElementById('organizationName').value.trim(),
+        adminName: document.getElementById('adminName').value.trim(),
+        adminRole: document.getElementById('adminRole').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        country: document.getElementById('country').value,
+        city: document.getElementById('city').value.trim(),
+        registerMeshCentral: registerMeshCentral.checked,
+        meshGroupName: document.getElementById('meshGroupName').value.trim(),
+        ...extra,
+      };
+    }
+
+    async function submitRegistration(credentials = {}) {
+      hideAlert();
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Registering…';
+      showProcessingOverlay();
+
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 120000);
+        const res = await fetch('/api/device/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildPayload(credentials)),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        let data;
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          data = await res.json();
+        } else {
+          throw new Error('Unexpected server response. Restart Atomo Forge and try again.');
+        }
+
+        if (!res.ok) {
+          hideProcessingOverlay(false);
+          if (data.phases) showResult(data);
+          const errMsg = data.error || 'Registration failed.';
+          showAlert(errMsg);
+          return;
+        }
+
+        if (data.phases && data.phases.length) {
+          const last = data.phases[data.phases.length - 1];
+          processingStep.textContent = last.message || last.label;
+          processingBar.style.width = '100%';
+        }
+
+        hideProcessingOverlay(true);
+        showAlert(data.message, 'success');
+        showResult(data);
+        submitBtn.textContent = 'Registered!';
+        form.querySelectorAll('input, select, textarea, button').forEach((el) => {
+          if (el.id !== 'cancelBtn') el.disabled = true;
+        });
+        setTimeout(() => {
+          window.location.href = data.redirectTo || '/dashboard';
+        }, 3000);
+      } catch (err) {
+        hideProcessingOverlay(false);
+        showAlert(err.name === 'AbortError'
+          ? 'Registration timed out. Check Atomic Center — the device may still appear shortly.'
+          : 'Network error. Please try again.');
+      } finally {
+        if (submitBtn.textContent !== 'Registered!') {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Register Device';
+        }
+      }
+    }
+
+    passwordCancelBtn.addEventListener('click', hidePasswordModal);
+
+    passwordConfirmBtn.addEventListener('click', async () => {
+      const sudoPassword = document.getElementById('sudoPassword').value;
+      if (!sudoPassword) {
+        showAlert('Please enter your device password (sudo).');
+        return;
+      }
+      hideAlert();
+      passwordConfirmBtn.disabled = true;
+      passwordConfirmBtn.textContent = 'Starting…';
+      hidePasswordModal();
+      await submitRegistration({ sudoPassword });
+      passwordConfirmBtn.disabled = false;
+      passwordConfirmBtn.textContent = 'Install & Register';
+      document.getElementById('sudoPassword').value = '';
+    });
+
+    document.getElementById('sudoPassword').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        passwordConfirmBtn.click();
+      }
+    });
+
+    cancelBtn.addEventListener('click', async () => {
+      if (sessionId) {
+        await fetch('/api/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId }),
+        });
+      }
+      sessionStorage.removeItem('atomoSessionId');
+      window.location.href = '/login';
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (registerMeshCentral.checked && needsDevicePassword()) {
+        showPasswordModal();
+        return;
+      }
+      await submitRegistration();
+    });
+
+    loadPageData();
+  </script>
+</body>
+</html>

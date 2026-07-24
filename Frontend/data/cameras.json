@@ -1,0 +1,50 @@
+{
+  "cameras": [
+    {
+      "status": "online",
+      "createdAt": "2026-07-23T10:17:06.775Z",
+      "name": "cam1",
+      "type": "rtsp",
+      "rtspUrl": "rtsp://admin12345:admin12345@192.168.1.116:554/stream1",
+      "username": "",
+      "ipAddress": "",
+      "port": "",
+      "location": "",
+      "zoneFloor": "",
+      "department": "",
+      "group": "",
+      "resolution": "1920x1080",
+      "fpsLimit": 25,
+      "aiModels": [
+        "face-recog"
+      ],
+      "modelConfidence": {},
+      "recording": true,
+      "alertRules": [],
+      "validation": {
+        "resolution": "1920x1080",
+        "fps": 25,
+        "codec": "H.264",
+        "latencyMs": 156,
+        "hasAudio": true,
+        "reconnectOk": true,
+        "ip": null,
+        "port": null,
+        "type": "rtsp"
+      },
+      "id": "28029b3c-e977-48cb-993b-196255721ee3",
+      "url": "rtsp://admin12345:admin12345@192.168.1.116:554/stream1",
+      "floor": "",
+      "whepUrl": "http://192.168.1.38:8889/28029b3c-e977-48cb-993b-196255721ee3/whep",
+      "hlsUrl": "http://192.168.1.38:8888/28029b3c-e977-48cb-993b-196255721ee3/index.m3u8",
+      "localRtsp": "rtsp://127.0.0.1:8554/28029b3c-e977-48cb-993b-196255721ee3",
+      "workerRtspUrl": "rtsp://192.168.1.38:8554/28029b3c-e977-48cb-993b-196255721ee3",
+      "localMediaPath": "28029b3c-e977-48cb-993b-196255721ee3",
+      "localMediaHost": "192.168.1.38",
+      "localMediaCodec": "h264",
+      "localMediaReady": false,
+      "localMediaError": "MediaMTX path add failed (400): {\"status\":\"error\",\"error\":\"path already exists\"}",
+      "localMediaSyncedAt": "2026-07-23T10:32:15.739Z"
+    }
+  ]
+}

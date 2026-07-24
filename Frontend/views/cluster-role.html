@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Select Device Role — Atomo Forge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .role-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      background: var(--surface);
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      cursor: pointer;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+    .role-card:hover { transform: translateY(-1px); border-color: var(--primary); background: var(--surface-hover); }
+    .role-title { font-size: 16px; font-weight: 700; margin: 0; }
+    .role-desc { margin: 6px 0 0; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+    .role-radio { margin-top: 3px; }
+    .stack { display: grid; gap: 12px; }
+    .actions { display:flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-top: 18px; }
+    .hint { color: var(--text-muted); font-size: 13px; margin-top: 8px; }
+  </style>
+</head>
+<body class="registration-body">
+  <div class="registration-container">
+    <header class="registration-header">
+      <p class="step-label">STEP 3 OF 3 — TOPOLOGY SETUP</p>
+      <h1>Choose Master / Slave</h1>
+      <p class="registration-subtitle">
+        Choose how this device will operate for this session. You will see this screen after every login.
+      </p>
+      <p class="hint">
+        Master = control node (Admin/Viewer roles). Slave = full role list. Standalone = skip role setup and open dashboard.
+      </p>
+    </header>
+
+    <div id="alert" class="alert alert-error" role="alert" style="display:none;"></div>
+
+    <div class="stack" role="radiogroup" aria-label="Cluster role selection">
+      <label class="role-card" for="roleMaster">
+        <input class="role-radio" type="radio" name="clusterMode" id="roleMaster" value="master">
+        <div>
+          <p class="role-title">Master</p>
+          <p class="role-desc">
+            Acts as the control node. Aggregates alerts and health from slave devices and manages rollout/config.
+          </p>
+        </div>
+      </label>
+
+      <label class="role-card" for="roleSlave">
+        <input class="role-radio" type="radio" name="clusterMode" id="roleSlave" value="slave" checked>
+        <div>
+          <p class="role-title">Slave</p>
+          <p class="role-desc">
+            Runs cameras + AI locally. Sends metadata/alerts/health to the master and continues working offline.
+          </p>
+        </div>
+      </label>
+
+      <label class="role-card" for="roleStandalone">
+        <input class="role-radio" type="radio" name="clusterMode" id="roleStandalone" value="standalone">
+        <div>
+          <p class="role-title">Standalone</p>
+          <p class="role-desc">
+            Single-device mode. No slave discovery or remote aggregation. Best for demo/testing.
+          </p>
+        </div>
+      </label>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-secondary btn-inline" id="backBtn">Back</button>
+      <button type="button" class="btn btn-primary btn-inline" id="saveBtn">Save & Continue</button>
+    </div>
+  </div>
+
+  <script>
+    const alertEl = document.getElementById('alert');
+    const saveBtn = document.getElementById('saveBtn');
+    const backBtn = document.getElementById('backBtn');
+    let sessionId = sessionStorage.getItem('atomoSessionId');
+
+    function showError(msg) {
+      alertEl.textContent = msg;
+      alertEl.style.display = 'block';
+    }
+    function hideError() {
+      alertEl.textContent = '';
+      alertEl.style.display = 'none';
+    }
+
+    function networkErrorMessage() {
+      return 'Cannot reach the server. Start it with: node server.js — then sign in again if the session expired.';
+    }
+
+    function clusterRoleUrl() {
+      return sessionId
+        ? `/api/cluster-role?sessionId=${encodeURIComponent(sessionId)}`
+        : '/api/cluster-role';
+    }
+
+    backBtn.addEventListener('click', () => {
+      window.location.href = '/device-registration';
+    });
+
+    async function loadCurrentRole() {
+      try {
+        const res = await fetch(clusterRoleUrl());
+        if (res.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.sessionId) {
+          sessionId = data.sessionId;
+          sessionStorage.setItem('atomoSessionId', data.sessionId);
+        }
+        const mode = data.clusterMode || 'slave';
+        const input = document.querySelector(`input[name="clusterMode"][value="${mode}"]`);
+        if (input) input.checked = true;
+      } catch {
+        showError(networkErrorMessage());
+      }
+    }
+
+    loadCurrentRole();
+
+    saveBtn.addEventListener('click', async () => {
+      hideError();
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+      try {
+        const selected = document.querySelector('input[name="clusterMode"]:checked');
+        const clusterMode = selected ? selected.value : 'slave';
+        const res = await fetch('/api/cluster-role', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sessionId ? { 'x-session-id': sessionId } : {}),
+          },
+          body: JSON.stringify({ clusterMode, sessionId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to save role.');
+        }
+        if (data.sessionId) {
+          sessionStorage.setItem('atomoSessionId', data.sessionId);
+        }
+        window.location.href = data.redirectTo || '/overview';
+      } catch (e) {
+        const msg = e.message === 'Failed to fetch' ? networkErrorMessage() : (e.message || 'Failed to save role.');
+        showError(msg);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save & Continue';
+      }
+    });
+  </script>
+</body>
+</html>

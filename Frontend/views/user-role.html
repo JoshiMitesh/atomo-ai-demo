@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Select User Role — Atomo Forge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .role-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      background: var(--surface);
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      cursor: pointer;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+    .role-card:hover { transform: translateY(-1px); border-color: var(--primary); background: var(--surface-hover); }
+    .role-title { font-size: 16px; font-weight: 700; margin: 0; }
+    .role-desc { margin: 6px 0 0; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+    .role-radio { margin-top: 3px; flex-shrink: 0; }
+    .stack { display: grid; gap: 12px; }
+    .actions { display:flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-top: 18px; }
+    .hint { color: var(--text-muted); font-size: 13px; margin-top: 8px; }
+  </style>
+</head>
+<body class="registration-body">
+  <div class="registration-container" style="max-width: 720px;">
+    <header class="registration-header">
+      <p class="step-label">SESSION SETUP — USER ROLE</p>
+      <h1>Select your role</h1>
+      <p class="registration-subtitle" id="roleSubtitle">
+        Choose the access level for this session. Dashboard menus and actions depend on your role.
+      </p>
+      <p class="hint" id="roleHint">You will select your role after every login.</p>
+    </header>
+
+    <div id="alert" class="alert alert-error" role="alert" style="display:none;"></div>
+
+    <div id="roleList" class="stack" role="radiogroup" aria-label="User role selection"></div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-secondary btn-inline" id="backBtn">Back</button>
+      <button type="button" class="btn btn-primary btn-inline" id="saveBtn">Continue to Dashboard</button>
+    </div>
+  </div>
+
+  <script>
+    const alertEl = document.getElementById('alert');
+    const saveBtn = document.getElementById('saveBtn');
+    const backBtn = document.getElementById('backBtn');
+    const roleList = document.getElementById('roleList');
+    const roleSubtitle = document.getElementById('roleSubtitle');
+    const roleHint = document.getElementById('roleHint');
+    let sessionId = sessionStorage.getItem('atomoSessionId');
+
+    function showError(msg) {
+      alertEl.textContent = msg;
+      alertEl.style.display = 'block';
+    }
+    function hideError() {
+      alertEl.textContent = '';
+      alertEl.style.display = 'none';
+    }
+
+    function renderRoles(roles, selectedId) {
+      roleList.innerHTML = roles.map((role) => `
+        <label class="role-card" for="role-${role.id}">
+          <input class="role-radio" type="radio" name="userRole" id="role-${role.id}" value="${role.id}" ${role.id === selectedId ? 'checked' : ''}>
+          <div>
+            <p class="role-title">${role.name}</p>
+            <p class="role-desc">${role.description}</p>
+          </div>
+        </label>
+      `).join('');
+    }
+
+    function networkErrorMessage() {
+      return 'Cannot reach the server. Start it with: node server.js — then sign in again if the session expired.';
+    }
+
+    function userRoleUrl() {
+      return sessionId
+        ? `/api/user-role?sessionId=${encodeURIComponent(sessionId)}`
+        : '/api/user-role';
+    }
+
+    function applyClusterModeCopy(clusterMode) {
+      if (clusterMode === 'master') {
+        roleSubtitle.textContent =
+          'Master mode — choose Admin for full control or Viewer for read-only monitoring.';
+        roleHint.textContent = 'Only Admin and Viewer roles are available on master nodes.';
+        return;
+      }
+      roleSubtitle.textContent =
+        'Slave mode — choose the access level for this session. All roles are available.';
+      roleHint.textContent = 'You will select your role after every login.';
+    }
+
+    async function loadRoles() {
+      try {
+        const res = await fetch(userRoleUrl());
+        if (res.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+        if (!res.ok) throw new Error('Failed to load roles.');
+        const data = await res.json();
+        if (data.skipUserRole || data.clusterMode === 'standalone') {
+          window.location.href = data.redirectTo || '/overview';
+          return;
+        }
+        applyClusterModeCopy(data.clusterMode || 'slave');
+        const roles = data.roles || [];
+        const selected = data.userRole?.id || (data.clusterMode === 'master' ? 'admin' : 'operator');
+        renderRoles(roles, selected);
+      } catch (e) {
+        const msg = e.message === 'Failed to fetch' ? networkErrorMessage() : (e.message || 'Failed to load roles.');
+        showError(msg);
+      }
+    }
+
+    backBtn.addEventListener('click', () => {
+      window.location.href = '/cluster-role';
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      hideError();
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+      try {
+        const selected = document.querySelector('input[name="userRole"]:checked');
+        const roleId = selected ? selected.value : null;
+        if (!roleId) {
+          throw new Error('Select a role to continue.');
+        }
+        const res = await fetch('/api/user-role', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sessionId ? { 'x-session-id': sessionId } : {}),
+          },
+          body: JSON.stringify({ roleId, sessionId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+        if (!res.ok) throw new Error(data.error || 'Failed to save role.');
+        window.location.href = data.redirectTo || '/overview';
+      } catch (e) {
+        const msg = e.message === 'Failed to fetch' ? networkErrorMessage() : (e.message || 'Failed to save role.');
+        showError(msg);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Continue to Dashboard';
+      }
+    });
+
+    loadRoles();
+  </script>
+</body>
+</html>

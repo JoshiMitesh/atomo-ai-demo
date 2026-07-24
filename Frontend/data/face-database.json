@@ -1,0 +1,114 @@
+{
+  "groups": [
+    {
+      "id": "employees",
+      "name": "Employees",
+      "builtin": true,
+      "color": "#10b981",
+      "description": "Staff and internal personnel"
+    },
+    {
+      "id": "visitors",
+      "name": "Visitors",
+      "builtin": true,
+      "color": "#3b82f6",
+      "description": "Temporary visitors and guests"
+    },
+    {
+      "id": "contractors",
+      "name": "Contractors",
+      "builtin": true,
+      "color": "#8b5cf6",
+      "description": "External contractors and vendors"
+    },
+    {
+      "id": "vip",
+      "name": "VIP",
+      "builtin": true,
+      "color": "#f59e0b",
+      "description": "VIP and executive access"
+    },
+    {
+      "id": "blacklist",
+      "name": "Blacklist",
+      "builtin": true,
+      "color": "#ef4444",
+      "description": "Restricted or banned individuals"
+    }
+  ],
+  "persons": [
+    {
+      "id": "2ba8564e-45df-45ee-8806-f4b0eb8211ca",
+      "backendPersonId": "p_239dca5a",
+      "fullName": "mitesh",
+      "personId": "",
+      "groupId": "visitors",
+      "role": "",
+      "contact": {
+        "email": "",
+        "phone": ""
+      },
+      "department": "",
+      "notes": "Named from unknown-face cluster",
+      "profileImageUrl": "/api/face/persons/2ba8564e-45df-45ee-8806-f4b0eb8211ca/image",
+      "authorizationStatus": "authorized",
+      "createdAt": "2026-07-17T11:02:48.521Z",
+      "lastSeen": {
+        "at": "2026-07-17T11:10:02.923Z",
+        "cameraId": "033ffcc5-c0af-494d-a9a4-190cb418dee4",
+        "cameraName": "mitesh",
+        "location": "h"
+      },
+      "embeddingCount": 6,
+      "enrolledAt": "2026-07-17T11:02:49.904Z",
+      "updatedAt": "2026-07-17T11:10:02.923Z"
+    },
+    {
+      "id": "bd3dbe6d-f319-429d-a590-d465c5002679",
+      "backendPersonId": null,
+      "fullName": "neha",
+      "personId": "",
+      "groupId": "visitors",
+      "role": "",
+      "contact": {
+        "email": "",
+        "phone": ""
+      },
+      "department": "",
+      "notes": "Named from unknown-face cluster",
+      "profileImageUrl": "/api/face/persons/bd3dbe6d-f319-429d-a590-d465c5002679/image",
+      "authorizationStatus": "authorized",
+      "createdAt": "2026-07-17T11:03:23.807Z",
+      "lastSeen": {
+        "at": "2026-07-17T11:05:30.685Z",
+        "cameraId": "033ffcc5-c0af-494d-a9a4-190cb418dee4",
+        "cameraName": "mitesh",
+        "location": "h"
+      },
+      "embeddingCount": 0,
+      "enrolledAt": "2026-07-17T11:03:23.807Z",
+      "updatedAt": "2026-07-17T11:05:30.686Z"
+    },
+    {
+      "id": "acd9c359-f7a4-4036-a690-836c4628e17d",
+      "backendPersonId": "p_447ffab4",
+      "fullName": "neha",
+      "personId": "",
+      "groupId": "visitors",
+      "role": "",
+      "contact": {
+        "email": "",
+        "phone": ""
+      },
+      "department": "",
+      "notes": "Named from unknown-face cluster",
+      "profileImageUrl": "/api/face/persons/acd9c359-f7a4-4036-a690-836c4628e17d/image",
+      "authorizationStatus": "authorized",
+      "createdAt": "2026-07-17T11:03:47.498Z",
+      "lastSeen": null,
+      "embeddingCount": 4,
+      "enrolledAt": "2026-07-17T11:03:52.031Z",
+      "updatedAt": "2026-07-17T11:03:52.032Z"
+    }
+  ]
+}

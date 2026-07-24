@@ -1,0 +1,51 @@
+{
+  "channels": {
+    "email": {
+      "enabled": true,
+      "available": true,
+      "senderEmail": "smihir951@gmail.com",
+      "appPassword": "5553454353534543",
+      "recipients": [
+        "palneha1912@gmail.com"
+      ],
+      "events": {
+        "person-restricted-area": false,
+        "fire-smoke-alert": true,
+        "unknown-face-detected": true,
+        "blacklisted-person": false,
+        "unauthorized-person": false,
+        "vip-person": false,
+        "known-face-recognized": true
+      }
+    },
+    "whatsapp": {
+      "enabled": false,
+      "available": false,
+      "recipients": [],
+      "events": {
+        "person-restricted-area": false,
+        "fire-smoke-alert": true,
+        "unknown-face-detected": true,
+        "blacklisted-person": false,
+        "unauthorized-person": false,
+        "vip-person": false,
+        "known-face-recognized": true
+      }
+    },
+    "telegram": {
+      "enabled": false,
+      "available": false,
+      "recipients": [],
+      "events": {
+        "person-restricted-area": false,
+        "fire-smoke-alert": true,
+        "unknown-face-detected": true,
+        "blacklisted-person": false,
+        "unauthorized-person": false,
+        "vip-person": false,
+        "known-face-recognized": true
+      }
+    }
+  },
+  "updatedAt": "2026-07-16T09:27:47.341Z"
+}

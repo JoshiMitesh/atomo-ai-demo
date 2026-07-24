@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{DETECTION_TITLE}} — Atomo Forge</title>
+  <script>
+    (function () {
+      try {
+        var theme = localStorage.getItem('atomo-overview-theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) { /* ignore */ }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/overview.css">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js" defer></script>
+  <script src="/js/whep-player.js" defer></script>
+  <script src="/js/live-metrics.js" defer></script>
+  <script src="/js/app-shell.js" defer></script>
+  <script src="/js/camera-stream-log.js" defer></script>
+  <script src="/js/camera-management.js" defer></script>
+  <script src="/js/person-live.js" defer></script>
+  <script src="/js/face-live.js" defer></script>
+  <script src="/js/face-module.js" defer></script>
+  <script src="/js/detection-tab.js" defer></script>
+</head>
+<body class="ov-body ov-detection-body" data-detection-slug="{{DETECTION_SLUG}}" data-detection-model-id="{{DETECTION_MODEL_ID}}" data-board-ip="{{BOARD_IP}}">
+  <div class="ov-app">
+    <!-- APP_SIDEBAR -->
+
+    <div class="ov-shell">
+      <!-- APP_NAVBAR -->
+
+      <div class="ov-section-head">
+        <div>
+          <h1 id="detectionPageTitle">{{DETECTION_TITLE}}</h1>
+          <p class="ov-breadcrumb" id="detectionBreadcrumb">AI detection · {{DETECTION_TITLE}}</p>
+        </div>
+      </div>
+
+      <main class="ov-main ov-detection-main">
+        <section id="cameraManagement" class="ov-cam-mgmt-wrap" aria-label="Camera management"></section>
+        <section id="personLiveRoot" class="ov-plive-root" aria-label="Person detection live view" hidden></section>
+        <section id="faceLiveRoot" class="ov-plive-root" aria-label="Face recognition live view" hidden></section>
+        <section id="faceModuleRoot" class="ov-face-module-wrap" aria-label="Face recognition module"></section>
+        <section id="modelControl" class="ov-det-model-wrap" aria-label="Detection events"></section>
+      </main>
+    </div>
+  </div>
+
+  <div class="ov-toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

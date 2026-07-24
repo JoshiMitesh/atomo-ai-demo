@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package atomo.device.v1;
+
+message DeviceId {
+  string id = 1;
+}
+
+message Heartbeat {
+  string device_id = 1;
+  string serial_number = 2;
+  string role = 3;
+  string ip_address = 4;
+  int64  unix_ms = 5;
+}
+
+message CommandRequest {
+  string device_id = 1;
+  string command_type = 2; // OTA_UPDATE, RESTART, APPLY_CONFIG, DEPLOY_MODEL
+  bytes  payload = 3;
+}
+
+message CommandResponse {
+  string command_id = 1;
+  string status = 2; // ACCEPTED, REJECTED
+}
+
+service DeviceControlService {
+  rpc SendHeartbeat(Heartbeat) returns (CommandResponse);
+  rpc EnqueueCommand(CommandRequest) returns (CommandResponse);
+}
+

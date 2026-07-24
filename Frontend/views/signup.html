@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Account — Atomo Forge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="logo">AF</div>
+        <h1>Create your account</h1>
+        <p id="signupHint">Verify your email with a one-time code</p>
+      </div>
+
+      <div id="deviceBlock" class="alert alert-error hidden" role="alert"></div>
+      <div id="onlineBanner" class="alert alert-success hidden" role="status"></div>
+
+      <div class="step-indicator">
+        <div class="step active" id="step1"></div>
+        <div class="step" id="step2"></div>
+      </div>
+
+      <div id="alert" class="alert alert-error" role="alert"></div>
+      <div id="smtpAlert" class="alert alert-error hidden" role="alert">
+        Email verification requires SMTP. Ask your admin to configure meshcentral-data/config.json.
+      </div>
+
+      <form id="signupForm" class="signup-form" novalidate autocomplete="off">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" placeholder="Choose a username" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')" required>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" required>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" placeholder="At least 8 characters" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" required>
+        </div>
+
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password</label>
+          <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Re-enter your password" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="continueBtn">Send verification code</button>
+      </form>
+
+      <div id="twofaSection" class="twofa-section">
+        <div class="twofa-instructions">
+          <h3>Email verification</h3>
+          <p>Enter the 8-digit code sent to <strong id="emailDisplay"></strong>. It expires in 10 minutes.</p>
+        </div>
+
+        <form id="verify2faForm" novalidate autocomplete="off">
+          <div class="form-group">
+            <label for="token">Verification code</label>
+            <input type="text" id="token" name="token" class="token-input" placeholder="00000000" maxlength="8" inputmode="numeric" autocomplete="off" required>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="verifyBtn">Verify &amp; Create Account</button>
+          <button type="button" class="btn btn-secondary" id="resendBtn">Resend code</button>
+          <button type="button" class="btn btn-secondary" id="backBtn">Back</button>
+        </form>
+      </div>
+
+      <div class="auth-footer">
+        Already have an account? <a href="/login">Sign in</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const alertEl = document.getElementById('alert');
+    const smtpAlert = document.getElementById('smtpAlert');
+    const signupForm = document.getElementById('signupForm');
+    const twofaSection = document.getElementById('twofaSection');
+    const verify2faForm = document.getElementById('verify2faForm');
+    const continueBtn = document.getElementById('continueBtn');
+    const verifyBtn = document.getElementById('verifyBtn');
+    const resendBtn = document.getElementById('resendBtn');
+    const backBtn = document.getElementById('backBtn');
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const deviceBlock = document.getElementById('deviceBlock');
+    const onlineBanner = document.getElementById('onlineBanner');
+    const signupHint = document.getElementById('signupHint');
+
+    let pendingUsername = '';
+    let pendingEmail = '';
+    let pendingOtpId = '';
+    let smtpReady = false;
+    let signupAllowed = false;
+
+    function disableSignupForm(message, hint) {
+      deviceBlock.textContent = message;
+      deviceBlock.classList.remove('hidden');
+      if (hint) signupHint.textContent = hint;
+      continueBtn.disabled = true;
+      signupForm.querySelectorAll('input').forEach((el) => { el.disabled = true; });
+    }
+
+    fetch('/api/config')
+      .then((r) => r.json())
+      .then((cfg) => {
+        const online = cfg.online === true;
+
+        if (!online) {
+          disableSignupForm(
+            'You are offline. Account creation requires a connection to Atomic Center (AWS).',
+            'Connect to the internet, then try again.'
+          );
+          return;
+        }
+
+        onlineBanner.textContent = 'Connected to Atomic Center. You can create a new account.';
+        onlineBanner.classList.remove('hidden');
+        signupAllowed = true;
+        smtpReady = !!cfg.emailVerificationEnabled;
+
+        if (!smtpReady) {
+          smtpAlert.classList.remove('hidden');
+          continueBtn.disabled = true;
+        } else {
+          continueBtn.disabled = false;
+        }
+
+        if (cfg.bound && cfg.boundUser) {
+          signupHint.textContent = `Online — new accounts are created on Atomic Center. This device uses ${cfg.boundUser.username} for offline sign-in.`;
+        }
+      })
+      .catch(() => {
+        disableSignupForm(
+          'Could not reach Atomic Center. Account creation is unavailable until you are online.',
+          'Connect to the internet, then try again.'
+        );
+      });
+
+    function showAlert(message, type = 'error') {
+      alertEl.textContent = message;
+      alertEl.className = `alert alert-${type} visible`;
+    }
+
+    function hideAlert() {
+      alertEl.className = 'alert alert-error';
+    }
+
+    function getFormData() {
+      return {
+        username: document.getElementById('username').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
+        confirmPassword: document.getElementById('confirmPassword').value,
+      };
+    }
+
+    function goToStep2(email) {
+      pendingEmail = email;
+      document.getElementById('emailDisplay').textContent = email;
+      signupForm.classList.add('hidden');
+      twofaSection.classList.add('active');
+      step1.classList.remove('active');
+      step1.classList.add('done');
+      step2.classList.add('active');
+      document.getElementById('token').focus();
+    }
+
+    function goToStep1() {
+      twofaSection.classList.remove('active');
+      signupForm.classList.remove('hidden');
+      step2.classList.remove('active');
+      step1.classList.add('active');
+      step1.classList.remove('done');
+      hideAlert();
+    }
+
+    async function sendVerificationCode() {
+      const data = getFormData();
+
+      if (!data.username || !data.email || !data.password || !data.confirmPassword) {
+        showAlert('Please fill in all fields.');
+        return false;
+      }
+
+      if (data.password !== data.confirmPassword) {
+        showAlert('Passwords do not match.');
+        return false;
+      }
+
+      if (data.password.length < 8) {
+        showAlert('Password must be at least 8 characters.');
+        return false;
+      }
+
+      const res = await fetch('/api/signup/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        showAlert(result.error || 'Could not send verification code.');
+        return false;
+      }
+
+      pendingUsername = result.username;
+      pendingOtpId = result.otpId || '';
+      showAlert(result.message, 'success');
+      goToStep2(result.email);
+      return true;
+    }
+
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideAlert();
+
+      if (!signupAllowed) {
+        showAlert('Account creation requires an internet connection to Atomic Center.');
+        return;
+      }
+
+      continueBtn.disabled = true;
+      continueBtn.textContent = 'Sending…';
+
+      try {
+        await sendVerificationCode();
+      } catch {
+        showAlert('Network error. Please try again.');
+      } finally {
+        continueBtn.disabled = !signupAllowed || !smtpReady;
+        continueBtn.textContent = 'Send verification code';
+      }
+    });
+
+    resendBtn.addEventListener('click', async () => {
+      hideAlert();
+      resendBtn.disabled = true;
+      resendBtn.textContent = 'Sending…';
+
+      try {
+        if (pendingOtpId) {
+          const res = await fetch('/api/signup/resend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: pendingUsername }),
+          });
+          const data = await res.json();
+          showAlert(data.message || data.error, res.ok);
+        } else {
+          await sendVerificationCode();
+        }
+      } catch {
+        showAlert('Network error. Please try again.');
+      } finally {
+        resendBtn.disabled = false;
+        resendBtn.textContent = 'Resend code';
+      }
+    });
+
+    verify2faForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideAlert();
+
+      const token = document.getElementById('token').value.trim();
+      if (!/^\d{8}$/.test(token)) {
+        showAlert('Please enter the 8-digit code from your email.');
+        return;
+      }
+
+      verifyBtn.disabled = true;
+      verifyBtn.textContent = 'Verifying…';
+
+      try {
+        const res = await fetch('/api/signup/verify-2fa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: pendingUsername, token }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showAlert(data.error || 'Verification failed.');
+          return;
+        }
+
+        if (data.sessionId) {
+          sessionStorage.setItem('atomoSessionId', data.sessionId);
+        }
+
+        showAlert(data.message, 'success');
+        verifyBtn.textContent = 'Account Created!';
+        setTimeout(() => {
+          window.location.href = data.redirectTo || (data.onboardingComplete ? '/dashboard' : '/device-registration');
+        }, 2000);
+      } catch {
+        showAlert('Network error. Please try again.');
+      } finally {
+        if (verifyBtn.textContent !== 'Account Created!') {
+          verifyBtn.disabled = false;
+          verifyBtn.textContent = 'Verify & Create Account';
+        }
+      }
+    });
+
+    backBtn.addEventListener('click', goToStep1);
+  </script>
+</body>
+</html>

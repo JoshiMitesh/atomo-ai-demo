@@ -1,0 +1,12 @@
+{
+  "_comment": "Device talks to Atomic Center on AWS. One device = one bound user.",
+  "meshcentralUrl": "https://3.108.40.151:4434",
+  "atomoforgeApiKey": "atomo-dev-key-change-in-production",
+  "allowInsecureTls": true,
+  "offlineLogin": true,
+  "singleUserPerDevice": true,
+  "singleSession": true,
+  "sessionTtlHours": 24,
+  "deviceBindingDb": "data/device-binding.sqlite",
+  "deviceIdFile": "data/device.json"
+}

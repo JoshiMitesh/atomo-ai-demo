@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — Atomo Forge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="logo">AF</div>
+        <h1>Welcome back</h1>
+        <p id="deviceHint">Sign in to your Atomo Forge account</p>
+      </div>
+
+      <div id="deviceBanner" class="alert alert-error hidden" role="status"></div>
+      <div id="alert" class="alert alert-error" role="alert"></div>
+
+      <form id="loginForm" class="login-form" novalidate autocomplete="off">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" placeholder="Enter your username" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')" required>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="loginBtn">Sign In</button>
+      </form>
+
+      <form id="login2faForm" class="login-2fa" novalidate autocomplete="off">
+        <p class="twofa-hint" id="login2faHint">Enter the 8-digit code sent to your email.</p>
+        <div class="form-group">
+          <label for="loginToken">Email verification code</label>
+          <input type="text" id="loginToken" name="token" class="token-input" placeholder="00000000" maxlength="8" inputmode="numeric" autocomplete="off" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="verify2faBtn">Verify &amp; Sign In</button>
+        <button type="button" class="btn btn-secondary" id="backToLogin">Back</button>
+      </form>
+
+      <div class="auth-footer" id="signupFooter">
+        Don't have an account? <a href="/signup" id="signupLink">Create one</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const alertEl = document.getElementById('alert');
+    const loginForm = document.getElementById('loginForm');
+    const login2faForm = document.getElementById('login2faForm');
+    const loginBtn = document.getElementById('loginBtn');
+    const verify2faBtn = document.getElementById('verify2faBtn');
+    const backToLogin = document.getElementById('backToLogin');
+    const deviceBanner = document.getElementById('deviceBanner');
+    const deviceHint = document.getElementById('deviceHint');
+    const usernameInput = document.getElementById('username');
+    const signupFooter = document.getElementById('signupFooter');
+
+    let credentials = {};
+
+    function setSignupLinkVisible(visible) {
+      if (!signupFooter) return;
+      if (visible) {
+        signupFooter.innerHTML = 'Don\'t have an account? <a href="/signup">Create one</a>';
+      } else {
+        signupFooter.innerHTML =
+          'Account creation requires an internet connection. <a href="/login">Sign in</a> if you already have one.';
+      }
+    }
+
+    function setUsernameLocked(locked) {
+      usernameInput.readOnly = locked;
+      if (locked) {
+        usernameInput.setAttribute('readonly', '');
+      } else {
+        usernameInput.removeAttribute('readonly');
+      }
+    }
+
+    async function loadDeviceStatus() {
+      try {
+        const res = await fetch('/api/device/status');
+        const data = await res.json();
+        const online = data.online === true;
+        const boundUser = data.boundUser?.username;
+
+        if (online) {
+          deviceHint.textContent = boundUser
+            ? `Online — connected to Atomic Center. Any account can sign in. Offline access is for ${boundUser}.`
+            : 'Online — connected to Atomic Center. Sign in with any Atomo Forge account.';
+          deviceBanner.textContent = 'Connected to Atomic Center (AWS). All registered users can sign in.';
+          deviceBanner.className = 'alert alert-success visible';
+          setUsernameLocked(false);
+          setSignupLinkVisible(true);
+          return;
+        }
+
+        setSignupLinkVisible(false);
+
+        if (data.bound && boundUser) {
+          usernameInput.value = boundUser;
+          setUsernameLocked(true);
+          deviceHint.textContent = `Offline — only ${boundUser} can sign in on this device.`;
+          deviceBanner.textContent = `No connection to Atomic Center. Only ${boundUser} can sign in (saved on this device).`;
+          deviceBanner.className = 'alert alert-error visible';
+          return;
+        }
+
+        deviceHint.textContent = 'Offline — no registered user on this device. Connect to the internet to sign in.';
+        deviceBanner.textContent =
+          'Atomic Center is unreachable and this device has no saved user. Sign in once while online to enable offline access.';
+        deviceBanner.className = 'alert alert-error visible';
+        loginBtn.disabled = true;
+      } catch {
+        deviceHint.textContent = 'Could not load device status. You can still try to sign in.';
+      }
+    }
+
+    loadDeviceStatus();
+
+    function showAlert(message, type = 'error') {
+      alertEl.textContent = message;
+      alertEl.className = `alert alert-${type} visible`;
+    }
+
+    function hideAlert() {
+      alertEl.className = 'alert alert-error';
+    }
+
+    function show2FAStep() {
+      loginForm.classList.add('hidden');
+      login2faForm.classList.add('active');
+      document.getElementById('loginToken').focus();
+    }
+
+    function hide2FAStep() {
+      login2faForm.classList.remove('active');
+      loginForm.classList.remove('hidden');
+      hideAlert();
+    }
+
+    async function attemptLogin(token) {
+      const body = { ...credentials };
+      if (token) body.token = token;
+
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        showAlert(data.error || 'Login failed.');
+        return;
+      }
+
+      if (data.requires2FA) {
+        if (data.message) {
+          showAlert(data.message, 'success');
+        }
+        show2FAStep();
+        return;
+      }
+
+      if (data.sessionId) {
+        sessionStorage.setItem('atomoSessionId', data.sessionId);
+      }
+
+      showAlert(data.message, 'success');
+      loginBtn.disabled = true;
+      verify2faBtn.disabled = true;
+
+      setTimeout(() => {
+        window.location.href = data.redirectTo || (data.onboardingComplete ? '/cluster-role' : '/device-registration');
+      }, 800);
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideAlert();
+
+      credentials = {
+        username: document.getElementById('username').value.trim(),
+        password: document.getElementById('password').value,
+      };
+
+      if (!credentials.username || !credentials.password) {
+        showAlert('Please enter your username and password.');
+        return;
+      }
+
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Signing in…';
+
+      try {
+        await attemptLogin();
+      } catch {
+        showAlert('Network error. Please try again.');
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Sign In';
+      }
+    });
+
+    login2faForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideAlert();
+
+      const token = document.getElementById('loginToken').value.trim();
+      if (!/^\d{8}$/.test(token)) {
+        showAlert('Please enter the 8-digit code from your email.');
+        return;
+      }
+
+      verify2faBtn.disabled = true;
+      verify2faBtn.textContent = 'Verifying…';
+
+      try {
+        await attemptLogin(token);
+      } catch {
+        showAlert('Network error. Please try again.');
+      } finally {
+        verify2faBtn.disabled = false;
+        verify2faBtn.textContent = 'Verify & Sign In';
+      }
+    });
+
+    backToLogin.addEventListener('click', () => {
+      hide2FAStep();
+      document.getElementById('loginToken').value = '';
+    });
+  </script>
+</body>
+</html>

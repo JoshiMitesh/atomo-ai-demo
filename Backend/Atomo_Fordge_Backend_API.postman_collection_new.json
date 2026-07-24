@@ -1,0 +1,1920 @@
+{
+  "info": {
+    "name": "Atomo Fordge Backend API",
+    "description": "Complete API collection for the Atomo Fordge Vision Backend. Covers Auth, Cameras, Models, Detection, Face, and System endpoints.\n\n**Setup:**\n1. Set the `base_url` variable to your server (default: http://localhost:3001)\n2. Run **Auth \u2192 Login (Admin)** first \u2014 the token is auto-saved to `token`\n3. All other requests use `{{token}}` automatically\n\n**Default credentials:**\n- admin / admin123\n- viewer / viewer123",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "camera_id",
+      "value": "cam_00000001",
+      "type": "string"
+    },
+    {
+      "key": "model_id",
+      "value": "mdl_person",
+      "type": "string"
+    },
+    {
+      "key": "person_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cluster_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "\ud83d\udd10 Auth",
+      "item": [
+        {
+          "name": "Login (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) {",
+                  "  pm.collectionVariables.set('token', json.token);",
+                  "  console.log('Token saved:', json.token.slice(0,30) + '...');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login (Viewer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('token', json.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"viewer\",\n  \"password\": \"viewer123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Current User (me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "\ud83e\ude7a Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "API Overview",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "\ud83d\udcf7 Cameras",
+      "item": [
+        {
+          "name": "Add Camera",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.id) pm.collectionVariables.set('camera_id', json.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Front Gate Camera\",\n  \"type\": \"rtsp\",\n  \"url\": \"rtsp://192.168.1.100:554/stream\",\n  \"username\": \"admin\",\n  \"password\": \"camera123\",\n  \"location\": \"Front Gate\",\n  \"zone\": \"Zone A\",\n  \"floor\": \"Ground\",\n  \"department\": \"Security\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/cameras",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "cameras"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List All Cameras",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/cameras",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "cameras"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Camera by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/cameras/{{camera_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "cameras",
+                "{{camera_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Camera",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Front Gate Camera (Updated)\",\n  \"location\": \"Main Entrance\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/cameras/{{camera_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "cameras",
+                "{{camera_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Camera (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/cameras/{{camera_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "cameras",
+                "{{camera_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Validate Stream",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/cameras/{{camera_id}}/validate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "cameras",
+                "{{camera_id}}",
+                "validate"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Restart Stream",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/cameras/{{camera_id}}/restart",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "cameras",
+                "{{camera_id}}",
+                "restart"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Camera Health Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/cameras/{{camera_id}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "cameras",
+                "{{camera_id}}",
+                "health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Camera Snapshot (JPEG base64)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/cameras/{{camera_id}}/snapshot",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "cameras",
+                "{{camera_id}}",
+                "snapshot"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Camera Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/cameras/{{camera_id}}/logs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "cameras",
+                "{{camera_id}}",
+                "logs"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "\ud83e\udd16 Models",
+      "item": [
+        {
+          "name": "List All Models",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/models",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "models"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Model by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/models/{{model_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "models",
+                "{{model_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Model Classes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/models/{{model_id}}/classes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "models",
+                "{{model_id}}",
+                "classes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Model Assignments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/models/{{model_id}}/assignments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "models",
+                "{{model_id}}",
+                "assignments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Upload Custom Model (legacy)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Custom Model\",\n  \"format\": \"onnx\",\n  \"version\": \"1.0.0\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/models/upload",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "models",
+                "upload"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Upload ZIP Model Package (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "package",
+                  "type": "file",
+                  "src": "/path/to/model.zip",
+                  "description": "ZIP containing .nb, .so, and data.yaml"
+                },
+                {
+                  "key": "name",
+                  "type": "text",
+                  "value": "Animal Detection"
+                },
+                {
+                  "key": "description",
+                  "type": "text",
+                  "value": "Detects cow, goat, dog"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/models/upload-zip",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "models",
+                "upload-zip"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Validate Model",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/models/{{model_id}}/validate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "models",
+                "{{model_id}}",
+                "validate"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Test Model Inference",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"image_b64\": \"<base64_encoded_jpeg_here>\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/models/{{model_id}}/test",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "models",
+                "{{model_id}}",
+                "test"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Custom Model (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/models/{{model_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "models",
+                "{{model_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "\ud83d\udd0d Detection",
+      "item": [
+        {
+          "name": "Start Detection Worker",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"{{camera_id}}\",\n  \"model_id\": \"{{model_id}}\",\n  \"confidence\": 0.45,\n  \"fps\": 5,\n  \"capabilities\": [\"person_detection\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/detect/start",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "detect",
+                "start"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Stop Detection Worker",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"{{camera_id}}\",\n  \"model_id\": \"{{model_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/detect/stop",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "detect",
+                "stop"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List All Running Workers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/detect/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "detect",
+                "status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Stop All Workers (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/detect/stop-all",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "detect",
+                "stop-all"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Worker Config",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"{{camera_id}}\",\n  \"model_id\": \"{{model_id}}\",\n  \"confidence\": 0.60,\n  \"fps\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/detect/config",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "detect",
+                "config"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Detection Zone",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"{{camera_id}}\",\n  \"model_id\": \"{{model_id}}\",\n  \"zone\": [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/detect/zone",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "detect",
+                "zone"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Latest Detection Result",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/detect/result/{{camera_id}}/{{model_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "detect",
+                "result",
+                "{{camera_id}}",
+                "{{model_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Model Capabilities",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/detect/capabilities/{{model_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "detect",
+                "capabilities",
+                "{{model_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "\ud83d\udc64 Face Recognition",
+      "item": [
+        {
+          "name": "Worker \u2014 Get Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/face/worker/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "worker",
+                "status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Worker \u2014 Start",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/face/worker/start",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "worker",
+                "start"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Worker \u2014 Stop",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/face/worker/stop",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "worker",
+                "stop"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Stream \u2014 Start Live Face Stream",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"{{camera_id}}\",\n  \"threshold\": 0.60,\n  \"dis_type\": 0,\n  \"capabilities\": [\"face_detection\", \"gender_classification\", \"face_recognition\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/face/stream/start",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "stream",
+                "start"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Stream \u2014 Start with Line Crossing (tripwire)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"{{camera_id}}\",\n  \"threshold\": 0.60,\n  \"dis_type\": 0,\n  \"capabilities\": [\"face_detection\", \"gender_classification\", \"face_recognition\"],\n  \"line_crossing_enabled\": true,\n  \"line_y\": 0.6,\n  \"line_direction\": \"in\",\n  \"line_x_start\": 0.0,\n  \"line_x_end\": 1.0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/face/stream/start",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "stream",
+                "start"
+              ]
+            },
+            "description": "Same endpoint as 'Stream \u2014 Start Live Face Stream', but with the optional inline line_* fields. All four are normalized 0.0\u20131.0 fractions of frame width/height, NOT pixels: line_y is the horizontal tripwire position (0=top, 1=bottom), line_x_start/line_x_end bound the segment horizontally (0=left, 1=right edge), and line_direction is 'in' | 'out' | 'both'.\n\nSending these here also SAVES them as the camera's line config (same effect as PUT /stream/line-config/:cameraId first) \u2014 so a later plain 'start' call without these fields will keep reusing this line."
+          }
+        },
+        {
+          "name": "Stream \u2014 Stop Live Face Stream",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"{{camera_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/face/stream/stop",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "stream",
+                "stop"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Stream \u2014 Poll Latest Result",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/face/stream/result/{{camera_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "stream",
+                "result",
+                "{{camera_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Stream \u2014 Poll Latest Boxes (Overlay)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/face/stream/boxes/{{camera_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "stream",
+                "boxes",
+                "{{camera_id}}"
+              ]
+            },
+            "description": "Returns the latest face bounding boxes for the given camera's live stream, formatted for frontend overlay rendering.\n\nEach box is returned twice:\n- `box`: raw pixel coordinates at the camera's native frame resolution (`frame_width` x `frame_height`)\n- `box_normalized`: coordinates scaled to 0\u20131, so the frontend can multiply by the *displayed* `<video>` element's current width/height to draw an accurate overlay regardless of render size\n\nRequires an active stream \u2014 call **Stream \u2014 Start Live Face Stream** first, then wait a couple seconds for a face to be detected before polling this."
+          }
+        },
+        {
+          "name": "Analyze \u2014 One-Shot Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": "/path/to/photo.jpg",
+                  "description": "JPEG/PNG image file"
+                },
+                {
+                  "key": "capabilities",
+                  "type": "text",
+                  "value": "[\"face_detection\",\"gender_classification\"]"
+                },
+                {
+                  "key": "threshold",
+                  "type": "text",
+                  "value": "0.60"
+                },
+                {
+                  "key": "dis_type",
+                  "type": "text",
+                  "value": "0"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/face/analyze",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "analyze"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Persons \u2014 Create",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.person_id) pm.collectionVariables.set('person_id', json.person_id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rahul Sharma\",\n  \"note\": \"Security staff\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/face/persons",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "persons"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Persons \u2014 List All",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/face/persons",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "persons"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Persons \u2014 Get by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/face/persons/{{person_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "persons",
+                "{{person_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Persons \u2014 Update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rahul Sharma\",\n  \"note\": \"Senior Security staff\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/face/persons/{{person_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "persons",
+                "{{person_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Persons \u2014 Delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/face/persons/{{person_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "persons",
+                "{{person_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Enroll \u2014 From Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": "/path/to/face_photo.jpg",
+                  "description": "Clear frontal face photo"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/face/persons/{{person_id}}/enroll/image",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "persons",
+                "{{person_id}}",
+                "enroll",
+                "image"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Enroll \u2014 From Video",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "video",
+                  "type": "file",
+                  "src": "/path/to/enrollment.mp4",
+                  "description": "Video file (mp4/avi)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/face/persons/{{person_id}}/enroll/video",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "persons",
+                "{{person_id}}",
+                "enroll",
+                "video"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Enroll \u2014 Clear All Embeddings",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/face/persons/{{person_id}}/embeddings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "persons",
+                "{{person_id}}",
+                "embeddings"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "\ud83d\udccf Line Crossing",
+      "item": [
+        {
+          "name": "Line Config \u2014 Get",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/face/stream/line-config/{{camera_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "stream",
+                "line-config",
+                "{{camera_id}}"
+              ]
+            },
+            "description": "Returns the saved tripwire line config for a camera (or the disabled default if none was ever set)."
+          }
+        },
+        {
+          "name": "Line Config \u2014 Set / Update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"line_y\": 0.5,\n  \"direction\": \"both\",\n  \"x_start\": 0.1,\n  \"x_end\": 0.9\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/face/stream/line-config/{{camera_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "stream",
+                "line-config",
+                "{{camera_id}}"
+              ]
+            },
+            "description": "Saves a new tripwire line for this camera, drawn by the frontend as normalized (0.0\u20131.0) coordinates. All fields are optional and merge onto the camera's current saved config (or the defaults, if none exists yet).\n\nIf this camera's face stream is currently running, it is automatically restarted in place so the new line takes effect immediately \u2014 the response's `restarted` field tells you whether that happened."
+          }
+        },
+        {
+          "name": "Line Config \u2014 Clear",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/face/stream/line-config/{{camera_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "stream",
+                "line-config",
+                "{{camera_id}}"
+              ]
+            },
+            "description": "Deletes the saved line config for this camera, reverting it to the disabled default. Does not restart a running stream \u2014 call Stream \u2014 Stop/Start (or Line Config \u2014 Set) to apply."
+          }
+        }
+      ]
+    },
+    {
+      "name": "\ud83e\udde9 Face Clusters",
+      "item": [
+        {
+          "name": "Clusters \u2014 List All",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/face/clusters",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "clusters"
+              ]
+            },
+            "description": "Lists recurring unlabeled-face clusters auto-built from live camera streams. Each entry includes seen_count, cameras seen on, and a representative_crop filename (served at {{base_url}}/crops/<filename>)."
+          }
+        },
+        {
+          "name": "Clusters \u2014 Get by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Handy when chaining from 'List All': grabs the first cluster_id",
+                  "var json = pm.response.json();",
+                  "if (json.cluster_id) pm.collectionVariables.set('cluster_id', json.cluster_id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/face/clusters/{{cluster_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "clusters",
+                "{{cluster_id}}"
+              ]
+            },
+            "description": "Set {{cluster_id}} from a 'Clusters \u2014 List All' response first (copy a cluster_id into the collection variable)."
+          }
+        },
+        {
+          "name": "Clusters \u2014 Get Match Threshold",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/face/clusters/config/threshold",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "clusters",
+                "config",
+                "threshold"
+              ]
+            },
+            "description": "Returns the current cosine similarity threshold used to decide whether a new unknown face joins an existing cluster (default 0.60, or CLUSTER_MATCH_THRESHOLD env var)."
+          }
+        },
+        {
+          "name": "Clusters \u2014 Set Match Threshold",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"threshold\": 0.65\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/face/clusters/config/threshold",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "clusters",
+                "config",
+                "threshold"
+              ]
+            },
+            "description": "Updates the cluster-join threshold immediately (no restart). Must be a number between 0 and 1 (exclusive)."
+          }
+        },
+        {
+          "name": "Clusters \u2014 Label as New Person",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.person_id) pm.collectionVariables.set('person_id', json.person_id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rahul Sharma\",\n  \"note\": \"Identified from camera cluster\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/face/clusters/{{cluster_id}}/label",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "clusters",
+                "{{cluster_id}}",
+                "label"
+              ]
+            },
+            "description": "Creates a new Person from every embedding/crop in the cluster, pushes the updated candidate list to the running worker, and deletes the cluster. The face is recognized (is_known: true) on the next detection."
+          }
+        },
+        {
+          "name": "Clusters \u2014 Label into Existing Person (merge)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"person_id\": \"{{person_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/face/clusters/{{cluster_id}}/label",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "clusters",
+                "{{cluster_id}}",
+                "label"
+              ]
+            },
+            "description": "Merges the cluster's embeddings into an already-enrolled person (e.g. more footage of someone who already has a photo enrolled) instead of creating a new one."
+          }
+        },
+        {
+          "name": "Clusters \u2014 Discard",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/face/clusters/{{cluster_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "face",
+                "clusters",
+                "{{cluster_id}}"
+              ]
+            },
+            "description": "Deletes a cluster without creating/updating any person \u2014 use for noise or clusters that mixed multiple people."
+          }
+        }
+      ]
+    },
+    {
+      "name": "\ud83d\udcca System",
+      "item": [
+        {
+          "name": "Live System Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/system/stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "system",
+                "stats"
+              ]
+            }
+          }
+        },
+        {
+          "name": "System History (last 60 min)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/system/history?minutes=60",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "system",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "minutes",
+                  "value": "60"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Per-Model Resource Usage",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/system/models/usage",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "system",
+                "models",
+                "usage"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Per-Camera Resource Usage",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/system/cameras/usage",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "system",
+                "cameras",
+                "usage"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Optimization Suggestions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/system/suggestions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "system",
+                "suggestions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Device Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/system/info",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "system",
+                "info"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

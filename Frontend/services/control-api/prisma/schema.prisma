@@ -1,0 +1,235 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DeviceRole {
+  MASTER
+  SLAVE
+  SECONDARY_MASTER
+}
+
+enum DeviceStatus {
+  NEW
+  APPROVED
+  REJECTED
+  BLOCKED
+  TRUSTED
+}
+
+enum HealthState {
+  HEALTHY
+  WARNING
+  CRITICAL
+  OFFLINE
+}
+
+model Site {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  devices   Device[]
+  cameras   Camera[]
+}
+
+model Device {
+  id              String       @id @default(cuid())
+  serialNumber    String       @unique
+  deviceName      String
+  role            DeviceRole
+  status          DeviceStatus @default(NEW)
+  trusted         Boolean      @default(false)
+
+  firmwareVersion String?
+  atomicOsVersion String?
+  cpuInfo         String?
+  gpuInfo         String?
+  memoryMb        Int?
+  storageMb       Int?
+
+  ipAddress       String?
+  macAddress      String?
+  model           String?
+  siteId          String?
+  site            Site?        @relation(fields: [siteId], references: [id])
+
+  lastSeenAt      DateTime?
+  healthState     HealthState  @default(OFFLINE)
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  cameras         Camera[]
+  alerts          Alert[]
+  healthSamples   HealthSample[]
+  discoveryEvents DiscoveryEvent[]
+  syncQueue       SyncQueueItem[]
+}
+
+model Camera {
+  id          String   @id @default(cuid())
+  name        String
+  sourceType  String
+  rtspUrl     String?
+  onvifHost   String?
+  location    String?
+  tags        String[] @default([])
+
+  siteId      String?
+  site        Site?    @relation(fields: [siteId], references: [id])
+
+  deviceId    String
+  device      Device   @relation(fields: [deviceId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  alerts      Alert[]
+}
+
+model Alert {
+  id          String   @id @default(cuid())
+  type        String
+  severity    String
+  title       String
+  description String?
+
+  siteId      String?
+  site        Site?    @relation(fields: [siteId], references: [id])
+
+  deviceId    String
+  device      Device   @relation(fields: [deviceId], references: [id])
+
+  cameraId    String?
+  camera      Camera?  @relation(fields: [cameraId], references: [id])
+
+  payload     Json
+  occurredAt  DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([occurredAt])
+  @@index([deviceId, occurredAt])
+  @@index([cameraId, occurredAt])
+}
+
+model HealthSample {
+  id           String      @id @default(cuid())
+  deviceId     String
+  device       Device      @relation(fields: [deviceId], references: [id])
+  state        HealthState
+
+  cpuPercent   Float?
+  gpuPercent   Float?
+  ramPercent   Float?
+  storagePercent Float?
+  temperatureC Float?
+  powerSource  String?
+  networkRxMbps Float?
+  networkTxMbps Float?
+
+  capturedAt   DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([deviceId, capturedAt])
+}
+
+model DiscoveryEvent {
+  id          String       @id @default(cuid())
+  deviceId    String?
+  device      Device?      @relation(fields: [deviceId], references: [id])
+  status      DeviceStatus @default(NEW)
+
+  discoveredByDeviceId String?
+  source      String
+  deviceName  String?
+  ipAddress   String?
+  macAddress  String?
+  model       String?
+  serialNumber String?
+  siteCode    String?
+  metadata    Json?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([status])
+}
+
+model SyncQueueItem {
+  id          String   @id @default(cuid())
+  deviceId    String
+  device      Device   @relation(fields: [deviceId], references: [id])
+
+  topic       String
+  payload     Json
+  attempts    Int      @default(0)
+  nextRetryAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([deviceId, createdAt])
+  @@index([nextRetryAt])
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String?  @unique
+  username    String   @unique
+  passwordHash String?
+  disabled    Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userRoles   UserRole[]
+  auditLogs   AuditLog[] @relation("AuditActor")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  permissions String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userRoles   UserRole[]
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, roleId])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  actor       User?    @relation("AuditActor", fields: [actorUserId], references: [id])
+
+  action      String
+  resourceType String
+  resourceId  String?
+  oldValue    Json?
+  newValue    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorUserId, createdAt])
+}
+

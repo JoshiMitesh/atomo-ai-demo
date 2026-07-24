@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard — Atomo Forge</title>
+    <script>
+      (function () {
+        var hash = window.location.hash || '';
+        var redirects = {
+          '#/person': '/detection/person',
+          '#/fire-smoke': '/detection/fire-smoke',
+          '#/face': '/detection/face',
+          '#/safety': '/detection/safety',
+          '#/settings': '/settings',
+        };
+        if (redirects[hash]) {
+          window.location.replace(redirects[hash]);
+        }
+      })();
+    </script>
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('atomo-overview-theme') || 'light';
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) { /* ignore */ }
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/overview.css" />
+    <link rel="stylesheet" crossorigin href="{{DASHBOARD_CSS}}" />
+    <script src="/js/live-metrics.js" defer></script>
+    <script src="/js/app-shell.js" defer></script>
+    <script type="module" crossorigin src="{{DASHBOARD_SCRIPT}}"></script>
+  </head>
+  <body class="ov-body ov-dashboard-body">
+    <div class="ov-app">
+      <!-- APP_SIDEBAR -->
+      <div class="ov-shell ov-dashboard-shell">
+        <!-- APP_NAVBAR -->
+        <div id="root" class="ov-dashboard-root"></div>
+      </div>
+    </div>
+  </body>
+</html>

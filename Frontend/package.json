@@ -1,0 +1,30 @@
+{
+  "name": "atomo-forge-auth",
+  "version": "1.0.0",
+  "description": "Login and signup with 2FA setup",
+  "main": "server.js",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "start": "node server.js",
+    "stop": "bash scripts/stop-dashboard.sh",
+    "restart": "bash scripts/stop-dashboard.sh && sleep 1 && node server.js",
+    "dev": "node --watch server.js",
+    "build:dashboard": "npm run build --prefix dashboard",
+    "dev:dashboard": "npm run dev --prefix dashboard",
+    "dev:control-api": "npm run dev --workspace @atomo/control-api",
+    "dev:control-web": "npm run dev --workspace @atomo/control-web",
+    "db:migrate": "npm run db:migrate --workspace @atomo/control-api",
+    "db:studio": "npm run db:studio --workspace @atomo/control-api"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.10.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "ws": "^8.21.0"
+  }
+}

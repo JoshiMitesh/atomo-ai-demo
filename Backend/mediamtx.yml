@@ -1,0 +1,18 @@
+rtsp: true
+rtspAddress: :8554
+
+webrtc: true
+webrtcAddress: :8889
+
+hls: true
+hlsAddress: :8888
+
+api: true
+apiAddress: :9997
+
+logLevel: info
+
+# Simple dynamic paths - no sourceOnDemand conflict
+paths:
+  '~.*':
+    sourceOnDemand: false

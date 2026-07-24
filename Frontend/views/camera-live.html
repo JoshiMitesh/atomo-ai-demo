@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Camera live view — Atomo Forge</title>
+  <script>
+    (function () {
+      try {
+        var theme = localStorage.getItem('atomo-overview-theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) { /* ignore */ }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/overview.css">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js" defer></script>
+  <script src="/js/whep-player.js" defer></script>
+  <script src="/js/live-metrics.js" defer></script>
+  <script src="/js/app-shell.js" defer></script>
+  <script src="/js/camera-live.js" defer></script>
+</head>
+<body class="ov-body ov-cam-live-body-page" data-board-ip="{{BOARD_IP}}">
+  <div class="ov-app">
+    <!-- APP_SIDEBAR -->
+
+    <div class="ov-shell">
+      <!-- APP_NAVBAR -->
+
+      <div class="ov-section-head ov-cam-live-head">
+        <div>
+          <a href="/overview" class="ov-cam-live-back" id="camLiveBack">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+            Back to overview
+          </a>
+          <h1 id="camLiveTitle">Camera live view</h1>
+          <p class="ov-breadcrumb" id="camLiveSub">Loading camera…</p>
+        </div>
+        <div class="ov-cam-live-head-meta" id="camLiveHeadMeta"></div>
+      </div>
+
+      <main class="ov-main ov-cam-live-main" id="cameraLiveRoot" aria-label="Camera live stream"></main>
+    </div>
+  </div>
+
+  <div class="ov-toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

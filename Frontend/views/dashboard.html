@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Atomo Forge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="dashboard-body">
+  <div class="dashboard-shell">
+    <header class="dashboard-topbar">
+      <div class="dashboard-brand">
+        <div class="logo logo-sm">AF</div>
+        <span>Atomo Forge</span>
+      </div>
+      <div class="dashboard-user">
+        <span id="userLabel">Loading…</span>
+        <button type="button" class="btn btn-ghost" id="logoutBtn">Sign out</button>
+      </div>
+    </header>
+
+    <main class="dashboard-main">
+      <p class="step-label">STEP 3 OF 3 — COMPLETE</p>
+      <h1 id="welcomeTitle">Welcome</h1>
+      <p class="dashboard-lead">Your device is registered. This is your workspace — more features will appear here soon.</p>
+
+      <div class="dashboard-grid">
+        <section class="dashboard-card dashboard-card-highlight">
+          <p class="card-label">Device</p>
+          <h2 id="deviceName">—</h2>
+          <p class="card-meta" id="deviceSerial">Serial —</p>
+        </section>
+
+        <section class="dashboard-card">
+          <p class="card-label">Organization</p>
+          <h2 id="orgName">—</h2>
+          <p class="card-meta" id="orgLocation">—</p>
+        </section>
+
+        <section class="dashboard-card dashboard-card-empty">
+          <div class="empty-icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          </div>
+          <h2>Dashboard modules</h2>
+          <p>Monitoring, remote access, and device management will show up in this area.</p>
+        </section>
+      </div>
+
+      <div class="dashboard-actions">
+        <a href="#" id="atomicCenterLink" class="btn btn-secondary btn-inline" target="_blank" rel="noopener noreferrer">Open Atomic Center</a>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const logoutBtn = document.getElementById('logoutBtn');
+    let sessionId = sessionStorage.getItem('atomoSessionId');
+
+    async function loadDashboard() {
+      const url = sessionId
+        ? `/api/session?sessionId=${encodeURIComponent(sessionId)}`
+        : '/api/session';
+
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (!data.authenticated) {
+        sessionStorage.removeItem('atomoSessionId');
+        window.location.href = '/login';
+        return;
+      }
+
+      if (!data.onboardingComplete) {
+        window.location.href = '/device-registration';
+        return;
+      }
+
+      if (data.sessionId) {
+        sessionId = data.sessionId;
+        sessionStorage.setItem('atomoSessionId', data.sessionId);
+      }
+
+      document.getElementById('userLabel').textContent = data.username;
+      document.getElementById('welcomeTitle').textContent = `Welcome, ${data.username}`;
+
+      const profile = data.profile;
+      if (profile) {
+        document.getElementById('deviceName').textContent = profile.deviceName || 'Registered device';
+        document.getElementById('deviceSerial').textContent = profile.deviceSerial
+          ? `Serial ${profile.deviceSerial}`
+          : 'Serial not set';
+        document.getElementById('orgName').textContent = profile.organizationName || '—';
+        document.getElementById('orgLocation').textContent =
+          [profile.city, profile.country].filter(Boolean).join(', ') || '—';
+      }
+
+      try {
+        const cfg = await fetch('/api/device/profile').then((r) => r.json());
+        if (cfg.meshcentralUrl) {
+          document.getElementById('atomicCenterLink').href = cfg.meshcentralUrl;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    logoutBtn.addEventListener('click', async () => {
+      if (sessionId) {
+        await fetch('/api/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId }),
+        });
+      }
+      sessionStorage.removeItem('atomoSessionId');
+      window.location.href = '/login';
+    });
+
+    loadDashboard();
+  </script>
+</body>
+</html>

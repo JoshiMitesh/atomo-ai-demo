@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alert Configuration — Atomo Forge</title>
+  <script>
+    (function () {
+      try {
+        var theme = localStorage.getItem('atomo-overview-theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) { /* ignore */ }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/overview.css">
+  <script src="/js/live-metrics.js" defer></script>
+  <script src="/js/app-shell.js" defer></script>
+  <script src="/js/alert-configuration.js" defer></script>
+</head>
+<body class="ov-body" data-page="alert-configuration">
+  <div class="ov-app">
+    <!-- APP_SIDEBAR -->
+
+    <div class="ov-shell">
+      <!-- APP_NAVBAR -->
+
+      <div class="ov-section-head">
+        <div>
+          <h1>Alert Configuration</h1>
+          <p class="ov-breadcrumb">AI Models · Alert Configuration</p>
+        </div>
+      </div>
+
+      <main class="ov-main">
+        <section
+          id="alertConfigRoot"
+          class="ov-alert-config-root"
+          aria-label="Alert configuration"
+        >
+          <!-- Content will be added here -->
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="ov-toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
