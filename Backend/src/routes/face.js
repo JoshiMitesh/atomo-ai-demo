@@ -180,7 +180,9 @@ bridge.on('stream_recognize', (face) => {
     if (isKnown && face.match) {
       const db = readDB();
       const liveThreshold = (db.settings && db.settings.threshold) ? db.settings.threshold : 0.60;
-      if (face.score >= Math.max(0.68, liveThreshold) && face.embedding) {
+      const matchMargin = Number(face.match?.margin ?? 0);
+      const learnThreshold = Math.max(0.55, Number(face.match?.effective_threshold ?? 0.45) + 0.08);
+      if (face.score >= learnThreshold && matchMargin >= 0.04 && face.embedding) {
         const person = personStore.getPerson(face.match.person_id);
         if (person && face.crop_filename) {
           // Prune oldest auto-learned photo if limit reached (mirrors small backend cap logic)
@@ -563,8 +565,19 @@ router.get('/persons/:id', requireAuth, (req, res) => {
   res.json({ ...p, embeddings: undefined, embedding_count: p.embeddings.length });
 });
 
-router.put('/persons/:id', requireAuth, (req, res) => {
-  try { const p = personStore.updatePerson(req.params.id, req.body); res.json({ person_id: p.person_id, name: p.name, note: p.note, updated: true }); }
+router.put('/persons/:id', requireAuth, async (req, res) => {
+  try {
+    const p = personStore.updatePerson(req.params.id, req.body);
+    if (bridge.isReady()) await bridge.updateCandidates(personStore.getCandidatesPayload());
+    res.json({
+      person_id: p.person_id,
+      name: p.name,
+      note: p.note,
+      updated: true,
+      merged: Boolean(p.merged_from),
+      merged_from: p.merged_from || null,
+    });
+  }
   catch (e) { res.status(404).json({ error: e.message }); }
 });
 
@@ -826,7 +839,9 @@ router.post('/recognize', requireAuth, imageUpload.single('photo'), async (req, 
         if (broadcast) broadcast({ event: 'recognition_event', data: savedEvent });
 
         // Auto-learning — mirrors small backend POST /recognize auto-learn logic
-        if (face.is_known && face.match && face.score >= Math.max(0.68, liveSettings.threshold) && face.embedding) {
+        const matchMargin = Number(face.match?.margin ?? 0);
+        const learnThreshold = Math.max(0.55, Number(face.match?.effective_threshold ?? 0.45) + 0.08);
+        if (face.is_known && face.match && face.score >= learnThreshold && matchMargin >= 0.04 && face.embedding) {
           const person = personStore.getPerson(face.match.person_id);
           if (person) {
             const allPhotos = person.photos || [];
