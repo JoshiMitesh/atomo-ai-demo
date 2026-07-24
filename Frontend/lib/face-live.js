@@ -29,7 +29,7 @@ const startPromises = new Map();
 const faceWorkerSources = new Map();
 const faceWorkerSourcePromises = new Map();
 const FACE_MIN_POLL_MS = Math.max(80, Number(process.env.FACE_POLL_MS) || 120);
-const FACE_EVENT_POLL_MS = Math.max(100, Number(process.env.FACE_EVENT_POLL_MS) || 200);
+const FACE_EVENT_POLL_MS = Math.max(250, Number(process.env.FACE_EVENT_POLL_MS) || 750);
 let boardFaceProcessStartPromise = null;
 let boardFaceProcessKnownRunning = false;
 /** Throttle cluster ingest per track so one person doesn't spam new crops. */
@@ -57,6 +57,9 @@ const crossedThisVisit = new Map();
 const motionTrackLastSeenAt = new Map();
 /** backendId -> Map(trackKey -> true) already emitted face-detect for this visit */
 const recordedFaceDetectKeys = new Map();
+/** backendId -> Map(visitKey -> face visit); survives short board track-id recycling. */
+const stableFaceVisits = new Map();
+let stableFaceVisitSequence = 0;
 /** photoKey → track that used this crop for a face-detect event */
 const usedFacePhotos = new Map();
 /** photoKey → track that used this crop for a line-cross event */
@@ -65,6 +68,9 @@ const usedLinePhotos = new Map();
 const CROSS_OVERLAY_PULSE_MS = 2500;
 /** Only a short grace for tracker flicker — NOT an event cooldown. */
 const TRACK_LOST_MS = 1500;
+/** A continuously visible face remains the same visit across brief detector gaps. */
+const FACE_VISIT_LOST_MS = 8000;
+const FACE_VISIT_SPATIAL_GRACE_MS = 3000;
 
 function clamp01(n) {
   const v = Number(n);
@@ -365,6 +371,63 @@ function faceEventIdentityKey(face, idx = 0) {
   return `idx:${idx}`;
 }
 
+function knownFacePersonId(face) {
+  if (face?.is_known !== true && face?.match?.is_known !== true) return null;
+  return face?.match?.person_id
+    || face?.match?.personId
+    || face?.person_id
+    || face?.personId
+    || null;
+}
+
+/**
+ * Keep one face-detection event per continuous visit even when the board tracker
+ * replaces track_id. Known people match by identity; unknown people match by
+ * recent box overlap. Separate simultaneous faces retain separate visit keys.
+ */
+function stableFaceVisitKey(backendId, face) {
+  let visits = stableFaceVisits.get(backendId);
+  if (!visits) {
+    visits = new Map();
+    stableFaceVisits.set(backendId, visits);
+  }
+
+  const now = Date.now();
+  for (const [key, visit] of [...visits.entries()]) {
+    if (now - visit.lastSeen > FACE_VISIT_LOST_MS) {
+      visits.delete(key);
+      recordedFaceDetectKeys.get(backendId)?.delete(key);
+      releasePhotosForTrack(key);
+    }
+  }
+
+  const box = Array.isArray(face?.box) ? face.box.slice(0, 4) : null;
+  const personId = knownFacePersonId(face);
+  let bestKey = null;
+  let bestScore = 0.18;
+
+  for (const [key, visit] of visits) {
+    if (personId && visit.personId === personId) {
+      bestKey = key;
+      break;
+    }
+    if (personId || visit.personId || !box || !visit.box) continue;
+    if (now - visit.lastSeen > FACE_VISIT_SPATIAL_GRACE_MS) continue;
+    const overlap = boxIou(box, visit.box);
+    if (overlap > bestScore) {
+      bestScore = overlap;
+      bestKey = key;
+    }
+  }
+
+  if (!bestKey) {
+    stableFaceVisitSequence += 1;
+    bestKey = `visit:${backendId}:${stableFaceVisitSequence}`;
+  }
+  visits.set(bestKey, { box, personId, lastSeen: now });
+  return bestKey;
+}
+
 function facePhotoKey(face) {
   if (face?.crop_filename) return `file:${face.crop_filename}`;
   const jpeg = typeof face?.crop_jpeg === 'string' ? face.crop_jpeg : '';
@@ -486,6 +549,7 @@ function clearLocalCrossingState(backendId) {
     crossedThisVisit.clear();
     motionTrackLastSeenAt.clear();
     recordedFaceDetectKeys.clear();
+    stableFaceVisits.clear();
     recordedCrossKeys.clear();
     usedFacePhotos.clear();
     usedLinePhotos.clear();
@@ -503,6 +567,7 @@ function clearLocalCrossingState(backendId) {
     if (key.startsWith(prefix)) forgetVisitStateForKey(key);
   }
   recordedFaceDetectKeys.delete(backendId);
+  stableFaceVisits.delete(backendId);
   recordedCrossKeys.delete(backendId);
 }
 
@@ -549,15 +614,6 @@ function touchCrossTrackPresence(backendId, faces) {
       }
     }
   }
-  const faceMap = recordedFaceDetectKeys.get(backendId);
-  if (faceMap) {
-    for (const key of [...faceMap.keys()]) {
-      if (!aliveIdentity.has(key) && now - (seenMap.get(key) || 0) > TRACK_LOST_MS) {
-        faceMap.delete(key);
-        releasePhotosForTrack(key);
-      }
-    }
-  }
 }
 
 /**
@@ -576,7 +632,7 @@ function takeUnseenFaceDetectFaces(backendId, faces) {
     // Same tick as a brand-new line-cross edge → line tab owns that moment.
     if (f?.justCrossed === true) return;
     if (!Array.isArray(f?.box) || f.box.length < 4) return;
-    const key = faceEventIdentityKey(f, idx);
+    const key = stableFaceVisitKey(backendId, f, idx);
     const prev = map.get(key);
     if (prev?.emitted) return;
 
@@ -678,6 +734,7 @@ function isWorkerWarmingUpError(err) {
   const msg = String(err?.message || err || '').toLowerCase();
   return msg.includes('no result yet')
     || msg.includes('stream running')
+    || msg.includes('stream is not running')
     || msg.includes('not ready')
     || msg.includes('warming');
 }
