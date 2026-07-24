@@ -614,7 +614,7 @@ app.post('/api/detection/face/live/:cameraId/start', async (req, res) => {
     const camera = cameraStore.getCamera(req.params.cameraId);
     const result = await faceLive.startLive(req.params.cameraId);
     camLog.logDetectionStart('face', req.params.cameraId, result, camera || {});
-    if (!result.ok) return res.status(400).json({ error: result.error });
+    if (!result.ok) return res.status(400).json(result);
     return res.json(result);
   } catch (err) {
     camLog.logDetectionStart('face', req.params.cameraId, {
