@@ -617,8 +617,8 @@ class VideoGrabber(threading.Thread):
         log(f"[{self.camera_id}] Starting FFmpeg raw reader for RTSP...")
         
         # This is the *analysis* stream only; the browser continues to use the
-        # original RTSP stream.  Two frames/sec at 640x360 is enough for face
-        # tracking while keeping the decoder and YuNet CPU use low.
+        # original RTSP stream. The FFmpeg output size must exactly match
+        # frame_size below; otherwise reads combine multiple smaller frames.
         # Preserve source detail for clear saved face crops. YuNet detection
         # is resized separately, so inference cost remains bounded.
         width = 1280
@@ -643,7 +643,7 @@ class VideoGrabber(threading.Thread):
                     '-skip_frame', 'bidir',
                     '-skip_loop_filter', 'all',
                     '-i', self.rtsp_url,
-                    '-vf', f'fps={self.target_fps},scale=640:360:flags=fast_bilinear',
+                    '-vf', f'fps={self.target_fps},scale={width}:{height}:flags=fast_bilinear',
                     '-f', 'image2pipe',
                     '-pix_fmt', 'bgr24',
                     '-vcodec', 'rawvideo',
