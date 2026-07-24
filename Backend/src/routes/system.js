@@ -27,7 +27,6 @@ function estimateBandwidthBps(w, h, fps) {
 
 // ── GET /api/system/stats ─────────────────────────────────────────────────────
 router.get('/stats', requireAuth, async (req, res) => {
-  log.debug({ reqId: req.id }, 'fetching system stats');
   try {
     // Always do a fresh collect for /stats (caller wants live data)
     log.trace('collecting fresh system sample');
