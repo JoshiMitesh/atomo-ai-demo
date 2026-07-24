@@ -7,6 +7,8 @@ function boardHost() {
   const configured = process.env.VISION_PUBLIC_HOST
     || process.env.MEDIA_PUBLIC_HOST
     || process.env.BOARD_PUBLIC_HOST
+    || process.env.VISION_API_URL
+    || process.env.BACKEND_API_URL
     || process.env.BOARD_IP
     || '';
   if (!configured) return '';
@@ -24,7 +26,16 @@ function normalizeMediaUrl(url) {
   if (!host) return raw;
   try {
     const parsed = new URL(raw);
-    if (['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(parsed.hostname)) {
+    const mediaPorts = new Set([
+      String(Number(process.env.MEDIAMTX_WEBRTC_PORT) || 8889),
+      String(Number(process.env.MEDIAMTX_HLS_PORT) || 8888),
+      String(Number(process.env.MEDIAMTX_RTSP_PORT) || 8554),
+    ]);
+    const isMediaUrl = mediaPorts.has(parsed.port);
+    if (
+      isMediaUrl
+      || ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(parsed.hostname)
+    ) {
       parsed.hostname = host;
     }
     if (process.env.MEDIA_PUBLIC_PROTOCOL) {
