@@ -963,7 +963,10 @@
           body: JSON.stringify({ name }),
         });
         if (res.ok) {
-          showToast('Cluster renamed on board');
+          const result = await res.json().catch(() => ({}));
+          showToast(result.merged
+            ? `Merged into existing ${result.name} identity`
+            : 'Identity name saved on board');
           await loadBoardPersons();
           renderShell();
         } else {
