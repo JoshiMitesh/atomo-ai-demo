@@ -40,13 +40,19 @@ function buildConfig(camera_id, body = {}) {
   const line_y = body.line_y !== undefined ? frac(body.line_y, null) : current.line_y;
   if (line_y === null) throw new Error('line_y must be a number between 0 and 1');
 
-  const x_start = body.x_start !== undefined ? frac(body.x_start, null) : current.x_start;
+  let x_start = body.x_start !== undefined ? frac(body.x_start, null) : current.x_start;
   if (x_start === null) throw new Error('x_start must be a number between 0 and 1');
 
-  const x_end = body.x_end !== undefined ? frac(body.x_end, null) : current.x_end;
+  let x_end = body.x_end !== undefined ? frac(body.x_end, null) : current.x_end;
   if (x_end === null) throw new Error('x_end must be a number between 0 and 1');
 
-  if (x_end <= x_start) throw new Error('x_end must be greater than x_start');
+  if (x_end < x_start) [x_start, x_end] = [x_end, x_start];
+  // The worker currently evaluates crossings against a horizontal Y line.
+  // A vertical/equal-X line from the UI must not make start recognition fail.
+  if (x_end - x_start < 0.001) {
+    x_start = 0;
+    x_end = 1;
+  }
 
   const direction = body.direction !== undefined ? body.direction : current.direction;
   if (!VALID_DIRECTIONS.has(direction))
