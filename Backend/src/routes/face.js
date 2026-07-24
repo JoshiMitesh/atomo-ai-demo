@@ -470,6 +470,14 @@ router.get('/clusters', requireAuth, (req, res) => {
   res.json(validatedClusters);
 });
 
+router.delete('/clusters', requireAuth, (req, res) => {
+  try {
+    const deleted = clusterStore.deleteAllClusters();
+    if (broadcast) broadcast({ event: 'clusters_updated' });
+    res.json({ ok: true, deleted, message: 'All unknown-face clusters deleted' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/clusters/:id', requireAuth, (req, res) => {
   const c = clusterStore.getCluster(req.params.id);
   if (!c) return res.status(404).json({ error: 'Cluster not found' });
@@ -558,6 +566,15 @@ router.post('/persons', requireAuth, (req, res) => {
 });
 
 router.get('/persons', requireAuth, (req, res) => res.json(personStore.listPersons()));
+
+router.delete('/persons', requireAuth, async (req, res) => {
+  try {
+    const deleted = personStore.deleteAllPersons();
+    if (bridge.isReady()) await bridge.updateCandidates([]);
+    if (broadcast) broadcast({ event: 'database_updated' });
+    res.json({ ok: true, deleted, message: 'All enrolled identities deleted' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 router.get('/persons/:id', requireAuth, (req, res) => {
   const p = personStore.getPerson(req.params.id);
