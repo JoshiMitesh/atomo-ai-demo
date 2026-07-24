@@ -12,6 +12,7 @@ const PROJECT_ROOT  = path.join(__dirname, '../..');
 const DETECTORS_DIR = path.join(PROJECT_ROOT, 'detectors');
 const SCRIPT_PATH   = path.join(DETECTORS_DIR, 'face_worker.py');
 const CROPS_DIR     = path.join(PROJECT_ROOT, 'data', 'crops');
+const PYTHON_BIN    = process.env.PYTHON_BIN || process.env.PYTHON_EXECUTABLE || 'python3';
 
 // The new worker reads RTSP over a raw FFmpeg pipe hardcoded to this
 // resolution (see VideoGrabber.run(): width=640, height=360) — every box
@@ -47,17 +48,27 @@ class FaceWorkerBridge extends EventEmitter {
     this.starting = true;
 
     return new Promise((resolve, reject) => {
-      log.info('Spawning face_worker.py...');
+      let settled = false;
+      let startupTimer;
+      const finishStartup = (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(startupTimer);
+        this.starting = false;
+        if (error) reject(error);
+        else resolve();
+      };
 
-      this.proc = spawn('python3', [SCRIPT_PATH], {
+      log.info({ python: PYTHON_BIN }, 'Spawning face_worker.py...');
+
+      this.proc = spawn(PYTHON_BIN, [SCRIPT_PATH], {
         cwd: DETECTORS_DIR,
         stdio: ['pipe', 'pipe', 'pipe'],
         env: { ...process.env, PYTHONUNBUFFERED: '1' },
       });
 
       if (!this.proc.pid) {
-        this.starting = false;
-        return reject(new Error('Failed to spawn face_worker.py — is it in detectors/?'));
+        return finishStartup(new Error(`Failed to spawn face_worker.py with "${PYTHON_BIN}"`));
       }
 
       this.proc.stdout.on('data', (chunk) => {
@@ -79,6 +90,12 @@ class FaceWorkerBridge extends EventEmitter {
 
       this.proc.on('close', (code) => {
         log.info({ code }, 'face_worker exited');
+        if (!this.ready) {
+          finishStartup(new Error(
+            `face_worker.py exited before becoming ready (code ${code}). ` +
+            `Check that "${PYTHON_BIN}" has the packages from detectors/requirements-face.txt.`
+          ));
+        }
         this.ready = false; this.starting = false; this.proc = null;
         this.activeStreams.clear();
         this.latestStreamResults.clear();
@@ -87,11 +104,11 @@ class FaceWorkerBridge extends EventEmitter {
         this.emit('exit', code);
       });
 
-      this.proc.on('error', err => { this.starting = false; reject(err); });
+      this.proc.on('error', err => finishStartup(err));
 
-      this.once('ready', () => { this.starting = false; resolve(); });
-      setTimeout(() => {
-        if (!this.ready) { this.starting = false; reject(new Error('face_worker.py did not become ready in 120s')); }
+      this.once('ready', () => finishStartup());
+      startupTimer = setTimeout(() => {
+        if (!this.ready) finishStartup(new Error('face_worker.py did not become ready in 120s'));
       }, 120_000);
     });
   }
