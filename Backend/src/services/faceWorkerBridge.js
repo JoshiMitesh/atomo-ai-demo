@@ -256,7 +256,13 @@ class FaceWorkerBridge extends EventEmitter {
       camera_id: cameraId, camera_name: cameraName, rtsp_url: rtspUrl,
       candidates, threshold, dis_type: disType, crops_dir: cropsDir,
       line_crossing_enabled, line_y, line_direction, line_x_start, line_x_end,
-    }).then(result => { this.activeStreams.add(cameraId); return result; });
+    }).then(result => {
+      this.activeStreams.add(cameraId);
+      // An active stream with no detected faces is a valid empty result, not
+      // a 404. Initialize it now instead of waiting for stream_detect.
+      this._getCameraEntry(cameraId, cameraName);
+      return result;
+    });
   }
   stopStream(cameraId) {
     return this._send('stop_stream', { camera_id: cameraId })
