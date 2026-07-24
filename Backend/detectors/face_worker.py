@@ -234,15 +234,31 @@ def compare_face_features(feat, threshold, dis_type, thread_recog):
         
     best_cand = cand_scores[0]
     best_score = best_cand["score"]
+    second_score = cand_scores[1]["score"] if len(cand_scores) > 1 else None
     
     is_match = False
     if dis_type == 0: # Cosine
-        is_match = best_score >= threshold
+        # The dashboard slider is a human-facing confidence control (40-95),
+        # not the raw OpenCV SFace cosine scale. Map it to a practical SFace
+        # range: 40% -> 0.36, 95% -> 0.58.
+        slider_threshold = min(0.95, max(0.40, float(threshold)))
+        effective_threshold = 0.20 + (0.40 * slider_threshold)
+        margin = best_score - second_score if second_score is not None else 1.0
+        # Reject ambiguous matches between two enrolled identities even when
+        # the raw best score passes.
+        is_match = best_score >= effective_threshold and margin >= 0.025
     else: # L2
+        effective_threshold = threshold
+        margin = second_score - best_score if second_score is not None else 1.0
         is_match = best_score <= threshold
                     
     if is_match:
-        return {"person_id": best_cand["person_id"], "name": best_cand["name"]}, best_score
+        return {
+            "person_id": best_cand["person_id"],
+            "name": best_cand["name"],
+            "margin": float(margin),
+            "effective_threshold": float(effective_threshold),
+        }, best_score
     else:
         return None, best_score
 
