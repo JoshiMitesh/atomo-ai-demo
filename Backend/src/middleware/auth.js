@@ -29,7 +29,6 @@ function requireAuth(req, res, next) {
 
   try {
     req.user = jwt.verify(token, SECRET);
-    log.debug({ reqId: req.id, user: req.user.username, role: req.user.role }, 'token verified');
     next();
   } catch (err) {
     if (process.env.REQUIRE_AUTH !== 'true') {
