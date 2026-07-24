@@ -15,6 +15,10 @@
 const DEFAULTS = Object.freeze({
   enabled:  false,
   line_y:      0.6,   // horizontal line position, 0 = top, 1 = bottom
+  line_x1:     0.0,
+  line_y1:     0.6,
+  line_x2:     1.0,
+  line_y2:     0.6,
   direction:   'in',  // 'in' | 'out' | 'both'
   x_start:     0.0,   // line segment start, 0 = left edge
   x_end:       1.0,   // line segment end, 1 = right edge
@@ -40,6 +44,20 @@ function buildConfig(camera_id, body = {}) {
   const line_y = body.line_y !== undefined ? frac(body.line_y, null) : current.line_y;
   if (line_y === null) throw new Error('line_y must be a number between 0 and 1');
 
+  let line_x1 = body.line_x1 !== undefined ? frac(body.line_x1, null) : (current.line_x1 ?? current.x_start);
+  let line_y1 = body.line_y1 !== undefined ? frac(body.line_y1, null) : (current.line_y1 ?? line_y);
+  let line_x2 = body.line_x2 !== undefined ? frac(body.line_x2, null) : (current.line_x2 ?? current.x_end);
+  let line_y2 = body.line_y2 !== undefined ? frac(body.line_y2, null) : (current.line_y2 ?? line_y);
+  if ([line_x1, line_y1, line_x2, line_y2].some(v => v === null))
+    throw new Error('line endpoints must be numbers between 0 and 1');
+
+  if (line_x2 < line_x1 || (line_x2 === line_x1 && line_y2 < line_y1)) {
+    [line_x1, line_x2] = [line_x2, line_x1];
+    [line_y1, line_y2] = [line_y2, line_y1];
+  }
+  if (Math.hypot(line_x2 - line_x1, line_y2 - line_y1) < 0.001)
+    throw new Error('line endpoints must not be identical');
+
   let x_start = body.x_start !== undefined ? frac(body.x_start, null) : current.x_start;
   if (x_start === null) throw new Error('x_start must be a number between 0 and 1');
 
@@ -58,7 +76,12 @@ function buildConfig(camera_id, body = {}) {
   if (!VALID_DIRECTIONS.has(direction))
     throw new Error(`direction must be one of: ${[...VALID_DIRECTIONS].join(', ')}`);
 
-  return { enabled, line_y, direction, x_start, x_end };
+  return {
+    enabled,
+    line_y: (line_y1 + line_y2) / 2,
+    line_x1, line_y1, line_x2, line_y2,
+    direction, x_start, x_end,
+  };
 }
 
 /** Set (create or update) a camera's line config. Throws on invalid input. */
