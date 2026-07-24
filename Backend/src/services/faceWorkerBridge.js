@@ -24,7 +24,9 @@ const STREAM_FRAME_HEIGHT = 360;
 // How long a detected face is kept around waiting for its matching
 // stream_recognize event (or just kept visible after being recognized)
 // before being pruned from the "latest result" for a camera.
-const FACE_TTL_MS   = 15_000;
+// The detector updates active tracks at ~2 FPS. Keeping disappeared tracks
+// for 15 seconds caused old and replacement boxes to be shown together.
+const FACE_TTL_MS   = 1_800;
 const MAX_FACES_PER_CAMERA = 50;
 
 class FaceWorkerBridge extends EventEmitter {
