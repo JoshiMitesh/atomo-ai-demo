@@ -197,6 +197,23 @@ function deleteCluster(id) {
   return true;
 }
 
+function deleteAllClusters() {
+  const ids = Array.from(clusters.keys());
+  for (const id of ids) {
+    const c = clusters.get(id);
+    for (const fn of (c?.crop_filenames || [])) {
+      const cropPath = path.join(CROPS_DIR, fn);
+      if (fs.existsSync(cropPath)) {
+        try { fs.unlinkSync(cropPath); } catch (e) {}
+      }
+    }
+  }
+  clusters.clear();
+  saveClustersToDB();
+  log.warn({ deleted: ids.length }, 'deleted all face clusters');
+  return ids.length;
+}
+
 function movePhotoFromClusterToPerson(clusterId, photoId, personId, name) {
   const cluster = clusters.get(clusterId);
   if (!cluster) throw new Error('Cluster not found');
@@ -244,6 +261,7 @@ module.exports = {
   listClusters,
   getCluster,
   deleteCluster,
+  deleteAllClusters,
   movePhotoFromClusterToPerson,
   getThreshold,
   setThreshold,
