@@ -352,7 +352,16 @@ router.post('/stream/stop', requireAuth, async (req, res) => {
 
 router.get('/stream/result/:cameraId', requireAuth, (req, res) => {
   const result = bridge.getLatestStreamResult(req.params.cameraId);
-  if (!result) return res.status(404).json({ error: 'No result yet — is the stream running?' });
+  if (!result) {
+    if (bridge.isStreamActive(req.params.cameraId)) {
+      return res.json({
+        camera_id: req.params.cameraId,
+        faces: [],
+        updated_at: new Date().toISOString(),
+      });
+    }
+    return res.status(404).json({ error: 'Stream is not running' });
+  }
   res.json({ camera_id: result.camera_id, camera_name: result.camera_name, faces: result.faces || [], updated_at: new Date().toISOString() });
 });
 
@@ -363,7 +372,18 @@ router.get('/stream/result/:cameraId', requireAuth, (req, res) => {
 // box_normalized.x/y/w/h by the video element's current width/height.
 router.get('/stream/boxes/:cameraId', requireAuth, (req, res) => {
   const result = bridge.getLatestStreamResult(req.params.cameraId);
-  if (!result) return res.status(404).json({ error: 'No result yet — is the stream running?' });
+  if (!result) {
+    if (bridge.isStreamActive(req.params.cameraId)) {
+      return res.json({
+        camera_id: req.params.cameraId,
+        frame_width: 640,
+        frame_height: 360,
+        boxes: [],
+        updated_at: new Date().toISOString(),
+      });
+    }
+    return res.status(404).json({ error: 'Stream is not running' });
+  }
 
   const fw = result.frame_width  || null;
   const fh = result.frame_height || null;
