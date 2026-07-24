@@ -107,7 +107,7 @@ bridge.on('stream_detect', (msg) => {
   const savedEvent = eventStore.addEvent(
     'UNKNOWN',
     'UNKNOWN',
-    0.0,
+    Number(msg.detection_score || 0),
     msg.crop_filename,
     false,
     msg.camera_id,
@@ -165,7 +165,9 @@ bridge.on('stream_recognize', (face) => {
     const updatedEvent = eventStore.updateEvent(eventId, {
       person_id: personId,
       person_name: personName,
-      score: face.score || 0,
+      score: isKnown
+        ? (face.score || 0)
+        : (eventStore.getEvent(eventId)?.score || face.detection_score || 0),
       is_known: isKnown
     });
 
@@ -383,8 +385,8 @@ router.get('/stream/boxes/:cameraId', requireAuth, (req, res) => {
     if (bridge.isStreamActive(req.params.cameraId)) {
       return res.json({
         camera_id: req.params.cameraId,
-        frame_width: 640,
-        frame_height: 360,
+        frame_width: 1280,
+        frame_height: 720,
         boxes: [],
         updated_at: new Date().toISOString(),
       });
@@ -410,6 +412,8 @@ router.get('/stream/boxes/:cameraId', requireAuth, (req, res) => {
       person_id: f.match?.person_id || null,
       name:      f.match?.name || null,
       score:     f.score || 0,
+      detection_score: f.detection_score || 0,
+      match_score: f.is_known ? (f.score || 0) : null,
       gender:    f.gender || null,
       crop_filename: f.crop_filename || null,
     };
