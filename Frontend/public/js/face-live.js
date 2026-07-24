@@ -1831,8 +1831,10 @@
       syncLineDrawUi();
       updateInferenceUi(frameData || {});
       drawFacesOverlay();
-      showToast(data.restarted ? 'Tripwire saved on board — stream restarted' : 'Tripwire saved — click Start recognition');
-      tripwireLog('Tripwire saved OK. Next: Start recognition. All face events also appear under Line crossed.', lineConfig);
+      showToast(data.hotUpdated
+        ? 'Tripwire saved — recognition continues'
+        : (inferenceRunning ? 'Tripwire saved' : 'Tripwire saved — click Start recognition'));
+      tripwireLog('Tripwire saved without restarting playback or recognition.', lineConfig);
     } catch (err) {
       tripwireWarn('Save failed', err);
       showToast(err.message || 'Could not save tripwire on board');
@@ -1861,7 +1863,7 @@
       syncLineDrawUi();
       updateInferenceUi(frameData || {});
       drawFacesOverlay();
-      showToast(data.restarted ? 'Tripwire cleared — stream restarted' : 'Tripwire cleared');
+      showToast(data.hotUpdated ? 'Tripwire cleared — recognition continues' : 'Tripwire cleared');
     } catch (err) {
       tripwireWarn('Clear failed', err);
       showToast(err.message || 'Could not clear tripwire on board');
