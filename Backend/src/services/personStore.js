@@ -179,6 +179,13 @@ function deletePerson(id) {
   log.info({ person_id: id }, 'deleted person');
 }
 
+function deleteAllPersons() {
+  const ids = Array.from(persons.keys());
+  for (const id of ids) deletePerson(id);
+  log.warn({ deleted: ids.length }, 'deleted all enrolled persons');
+  return ids.length;
+}
+
 function deletePhoto(photoId) {
   let foundPerson = null;
   let photoIndex = -1;
@@ -253,6 +260,7 @@ module.exports = {
   listPersons,
   updatePerson,
   deletePerson,
+  deleteAllPersons,
   deletePhoto,
   addEmbeddings,
   getCandidatesPayload,
