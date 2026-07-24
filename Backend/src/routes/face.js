@@ -296,28 +296,34 @@ router.put('/stream/line-config/:cameraId', requireAuth, async (req, res) => {
   try { cfg = lineConfigStore.setConfig(cameraId, req.body || {}); }
   catch (e) { return res.status(400).json({ error: e.message }); }
 
-  // If this camera's stream is already running, restart it so the new line
-  // takes effect immediately instead of waiting for the next manual start.
-  let restarted = false;
+  // Apply to the active Python thread without restarting FFmpeg/recognition.
+  let hotUpdated = false;
   if (bridge.isReady() && bridge.isStreamActive(cameraId)) {
     try {
-      const cam = cameras.get(cameraId);
-      const candidates = personStore.getCandidatesPayload();
-      await bridge.startStream(
-        cameraId, cam.name,
-        cam.local_rtsp || `rtsp://localhost:8554/${cameraId}`,
-        candidates, req.body?.threshold ?? 0.60, req.body?.dis_type ?? 0, CROPS_DIR, cfg
-      );
-      restarted = true;
+      await bridge.updateLineConfig(cameraId, cfg);
+      hotUpdated = true;
     } catch (e) { /* best-effort — config is saved either way */ }
   }
 
-  res.json({ camera_id: cameraId, ...cfg, restarted });
+  res.json({ camera_id: cameraId, ...cfg, hot_updated: hotUpdated, restarted: false });
 });
 
-router.delete('/stream/line-config/:cameraId', requireAuth, (req, res) => {
-  lineConfigStore.deleteConfig(req.params.cameraId);
-  res.json({ camera_id: req.params.cameraId, ...lineConfigStore.DEFAULTS });
+router.delete('/stream/line-config/:cameraId', requireAuth, async (req, res) => {
+  const { cameraId } = req.params;
+  lineConfigStore.deleteConfig(cameraId);
+  let hotUpdated = false;
+  if (bridge.isReady() && bridge.isStreamActive(cameraId)) {
+    try {
+      await bridge.updateLineConfig(cameraId, lineConfigStore.DEFAULTS);
+      hotUpdated = true;
+    } catch (e) { /* config remains cleared even if worker update fails */ }
+  }
+  res.json({
+    camera_id: cameraId,
+    ...lineConfigStore.DEFAULTS,
+    hot_updated: hotUpdated,
+    restarted: false,
+  });
 });
 
 router.post('/stream/stop', requireAuth, async (req, res) => {
