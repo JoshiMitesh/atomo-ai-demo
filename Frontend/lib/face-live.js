@@ -1704,7 +1704,7 @@ async function selectCamera(cameraId) {
 
   camera = await ensureFaceBackendCamera(camera);
   if (!usingLocalFaceBackend()) {
-    camera = await ensureBoardCamera(camera) || camera;
+    camera = await ensureBoardCamera(camera, { startStream: false }) || camera;
   } else {
     // Face inference may use a separate API, but browser playback must still
     // use the frontend machine's original MediaMTX pipeline.
@@ -1778,7 +1778,10 @@ async function startLiveInternal(cameraId) {
 
   camera = await ensureFaceBackendCamera(camera);
   if (!usingLocalFaceBackend()) {
-    camera = await ensureBoardCamera(camera) || camera;
+    // Starting recognition must not tear down the MediaMTX path currently
+    // feeding the browser. The camera was already registered/synchronized;
+    // only ensure its board mapping here.
+    camera = await ensureBoardCamera(camera, { startStream: false }) || camera;
   } else {
     camera = await attachLocalPlayback(camera) || camera;
   }
