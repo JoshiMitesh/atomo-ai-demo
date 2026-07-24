@@ -237,15 +237,16 @@ function startWorker(cameraId, modelId, config = {}, enabledCapabilities = []) {
   const modelType = MODEL_FILES[modelId] ? 'nb (built-in)' : (models.get(modelId)?.format || 'unknown');
   log.info({ key, cameraId, modelId, modelType, rtspUrl }, `spawning inference worker`);
 
-  const proc = spawn('python3', args, {
+  const pythonBin = process.env.PYTHON_BIN || process.env.PYTHON_EXECUTABLE || 'python3';
+  const proc = spawn(pythonBin, args, {
     stdio: ['ignore', 'pipe', 'pipe'],
     cwd: path.dirname(scriptPath),
     env: { ...process.env, PYTHONUNBUFFERED: '1' },
   });
 
   if (!proc.pid) {
-    log.error({ key }, 'failed to spawn python3 process');
-    throw new Error('Failed to spawn python3 — is it installed and on PATH?');
+    log.error({ key, python: pythonBin }, 'failed to spawn python process');
+    throw new Error(`Failed to spawn Python with "${pythonBin}" — check PYTHON_BIN`);
   }
 
   log.debug({ key, pid: proc.pid }, 'python process spawned');
