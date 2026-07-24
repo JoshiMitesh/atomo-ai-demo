@@ -951,20 +951,34 @@ app.post('/api/face/clusters/:id/label', async (req, res) => {
     localPerson = faceStore.getPerson(localPerson.id);
   }
 
-  // Enroll up to 3 crops on the board so recognition is robust.
+  // Cluster faces already have valid embeddings from live recognition. Send
+  // all of them in one request instead of re-detecting only the first 3 crops.
   let boardPersonId = null;
   let embeddingCount = 0;
   let boardError = null;
-  for (const crop of taken.crops.slice(0, 3)) {
-    const board = await faceBoardSync.syncPersonEnrollToBoard(
-      { ...localPerson, backendPersonId: boardPersonId },
-      `data:image/jpeg;base64,${crop.jpegBase64}`,
-    );
-    if (board.ok) {
-      boardPersonId = board.backendPersonId || boardPersonId;
-      embeddingCount = Math.max(embeddingCount, board.embeddingCount || 1);
-    } else {
-      boardError = board.error || boardError;
+  const bulk = await faceBoardSync.syncClusterEmbeddingsToBoard(
+    localPerson,
+    taken.embeddings,
+    taken.crops,
+  );
+  if (bulk.ok) {
+    boardPersonId = bulk.backendPersonId;
+    embeddingCount = bulk.embeddingCount;
+  } else {
+    boardError = bulk.error;
+    // Compatibility fallback for a board that has not yet received the bulk
+    // endpoint. Try every crop, not an arbitrary first-three subset.
+    for (const crop of taken.crops) {
+      const board = await faceBoardSync.syncPersonEnrollToBoard(
+        { ...localPerson, backendPersonId: boardPersonId },
+        `data:image/jpeg;base64,${crop.jpegBase64}`,
+      );
+      if (board.ok) {
+        boardPersonId = board.backendPersonId || boardPersonId;
+        embeddingCount = Math.max(embeddingCount, board.embeddingCount || 1);
+      } else {
+        boardError = board.error || boardError;
+      }
     }
   }
 
