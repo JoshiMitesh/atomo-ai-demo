@@ -1399,7 +1399,7 @@
       if (data?.backendError) note.textContent = data.backendError;
       else if (data?.backendConnected && inferenceRunning) {
         note.textContent = lineConfig?.enabled
-          ? 'Tripwire ON — no face events/boxes until someone crosses the orange line.'
+          ? 'Tripwire ON — live boxes remain visible; an event is created when a face crosses the orange line.'
           : 'Face recognition active on vision API.';
       } else if (!inferenceRunning) {
         note.textContent = lineConfig?.enabled
