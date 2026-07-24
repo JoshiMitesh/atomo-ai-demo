@@ -5,6 +5,32 @@ const path = require('path');
 const log = require('../utils/logger').child('person');
 
 const persons = new Map();
+const MAX_EMBEDDINGS_PER_PERSON = 200;
+const DUPLICATE_EMBEDDING_SIMILARITY = 0.995;
+
+function normalizeName(name) {
+  return String(name || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
+function cosineSimilarity(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b) || !a.length || !b.length) return -1;
+  let dot = 0, aa = 0, bb = 0;
+  const len = Math.min(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    dot += Number(a[i]) * Number(b[i]);
+    aa += Number(a[i]) * Number(a[i]);
+    bb += Number(b[i]) * Number(b[i]);
+  }
+  return aa > 0 && bb > 0 ? dot / Math.sqrt(aa * bb) : -1;
+}
+
+function findPersonByName(name, excludeId = null) {
+  const wanted = normalizeName(name);
+  if (!wanted) return null;
+  return Array.from(persons.values()).find(
+    p => p.person_id !== excludeId && normalizeName(p.name) === wanted
+  ) || null;
+}
 
 function loadFromDB() {
   try {
@@ -67,6 +93,8 @@ function saveToDB() {
 
 function createPerson({ name, gender = 'Unknown', note = '' }) {
   if (!name) throw new Error('name is required');
+  const existing = findPersonByName(name);
+  if (existing) return existing;
   const id = 'p_' + uuidv4().slice(0, 8);
   const p = {
     person_id: id,
@@ -108,7 +136,27 @@ function listPersons() {
 function updatePerson(id, patch) {
   const p = persons.get(id);
   if (!p) throw new Error(`Person ${id} not found`);
-  if (patch.name) p.name = patch.name;
+  if (patch.name) {
+    const sameNamePerson = findPersonByName(patch.name, id);
+    if (sameNamePerson) {
+      addEmbeddings(
+        sameNamePerson.person_id,
+        p.embeddings || [],
+        (p.photos || []).map(ph => ph.filename),
+      );
+      if (patch.note !== undefined) sameNamePerson.note = patch.note;
+      if (patch.gender) sameNamePerson.gender = patch.gender;
+      persons.delete(id);
+      sameNamePerson.updated_at = new Date().toISOString();
+      saveToDB();
+      log.info(
+        { source_person_id: id, target_person_id: sameNamePerson.person_id, name: sameNamePerson.name },
+        'merged same-name person'
+      );
+      return { ...sameNamePerson, merged_from: id };
+    }
+    p.name = String(patch.name).trim().replace(/\s+/g, ' ');
+  }
   if (patch.gender) p.gender = patch.gender;
   if (patch.note !== undefined) p.note = patch.note;
   p.updated_at = new Date().toISOString();
@@ -166,11 +214,25 @@ function addEmbeddings(id, embeddings, cropFilenames = []) {
   if (!p) throw new Error(`Person ${id} not found`);
   
   for (let i = 0; i < embeddings.length; i++) {
+    const embedding = embeddings[i];
+    if (!Array.isArray(embedding) || !embedding.length) continue;
+    const duplicate = p.embeddings.some(
+      existing => cosineSimilarity(existing, embedding) >= DUPLICATE_EMBEDDING_SIMILARITY
+    );
+    if (duplicate) continue;
     const fn = cropFilenames[i] || `photo_${Date.now()}_${i}.jpg`;
-    p.embeddings.push(embeddings[i]);
+    p.embeddings.push(embedding);
     p.crop_filenames.push(fn);
     if (!p.photos) p.photos = [];
     p.photos.push({ id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4), filename: fn });
+  }
+
+  while (p.embeddings.length > MAX_EMBEDDINGS_PER_PERSON) {
+    let removeAt = (p.photos || []).findIndex(ph => (ph.filename || '').startsWith('auto_'));
+    if (removeAt < 0) removeAt = 0;
+    p.embeddings.splice(removeAt, 1);
+    p.crop_filenames.splice(removeAt, 1);
+    p.photos.splice(removeAt, 1);
   }
 
   p.updated_at = new Date().toISOString();
@@ -193,5 +255,6 @@ module.exports = {
   deletePerson,
   deletePhoto,
   addEmbeddings,
-  getCandidatesPayload
+  getCandidatesPayload,
+  findPersonByName,
 };
