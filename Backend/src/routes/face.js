@@ -73,9 +73,37 @@ const { broadcast } = require('../store/websocketBroadcast');
 
 // Track active events - exactly like original backend
 const activeEventUuids = new Map();
+const recentFaceDetections = new Map();
+const DUPLICATE_EVENT_WINDOW_MS = 5_000;
+
+function boxesRepresentSameFace(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length < 4 || b.length < 4) return false;
+  const [ax, ay, aw, ah] = a.map(Number);
+  const [bx, by, bw, bh] = b.map(Number);
+  const acx = ax + aw / 2;
+  const acy = ay + ah / 2;
+  const bcx = bx + bw / 2;
+  const bcy = by + bh / 2;
+  const interW = Math.max(0, Math.min(ax + aw, bx + bw) - Math.max(ax, bx));
+  const interH = Math.max(0, Math.min(ay + ah, by + bh) - Math.max(ay, by));
+  const intersection = interW * interH;
+  const centerDistance = Math.hypot(acx - bcx, acy - bcy);
+  return intersection > 0 && centerDistance <= 0.8 * Math.max(aw, ah, bw, bh);
+}
 
 // When a face is detected, create an immediate UNKNOWN event
 bridge.on('stream_detect', (msg) => {
+  const now = Date.now();
+  const recent = (recentFaceDetections.get(msg.camera_id) || [])
+    .filter((item) => now - item.at < DUPLICATE_EVENT_WINDOW_MS);
+  const duplicate = recent.find((item) => boxesRepresentSameFace(item.box, msg.box));
+  if (duplicate) {
+    // Link recognition for the replacement track to the existing event.
+    activeEventUuids.set(msg.event_uuid, duplicate.eventId);
+    recentFaceDetections.set(msg.camera_id, recent);
+    return;
+  }
+
   const savedEvent = eventStore.addEvent(
     'UNKNOWN',
     'UNKNOWN',
@@ -87,6 +115,8 @@ bridge.on('stream_detect', (msg) => {
   );
   
   activeEventUuids.set(msg.event_uuid, savedEvent.id);
+  recent.push({ box: msg.box, eventId: savedEvent.id, at: now });
+  recentFaceDetections.set(msg.camera_id, recent);
   
   if (broadcast) {
     broadcast({
