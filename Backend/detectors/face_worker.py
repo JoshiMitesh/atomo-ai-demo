@@ -342,6 +342,50 @@ def deduplicate_faces(faces, iou_threshold=0.35, containment_threshold=0.75,
     return np.asarray(kept, dtype=faces.dtype)
 
 
+def is_usable_live_face(frame, face, min_confidence=0.82):
+    """Reject occluded, profile, blurry and non-face YuNet detections."""
+    x, y, w, h = [float(v) for v in face[:4]]
+    confidence = float(face[-1])
+    if confidence < min_confidence or w < 24 or h < 24:
+        return False
+    aspect = w / max(h, 1.0)
+    if aspect < 0.68 or aspect > 1.35:
+        return False
+
+    landmarks = np.asarray(face[4:14], dtype=np.float32).reshape(5, 2)
+    right_eye, left_eye, nose, right_mouth, left_mouth = landmarks
+    margin_x, margin_y = 0.08 * w, 0.08 * h
+    for lx, ly in landmarks:
+        if lx < x - margin_x or lx > x + w + margin_x:
+            return False
+        if ly < y - margin_y or ly > y + h + margin_y:
+            return False
+
+    eye_distance = abs(float(left_eye[0] - right_eye[0]))
+    eye_y = float((left_eye[1] + right_eye[1]) / 2.0)
+    mouth_y = float((left_mouth[1] + right_mouth[1]) / 2.0)
+    if eye_distance < 0.18 * w or eye_distance > 0.72 * w:
+        return False
+    if abs(float(left_eye[1] - right_eye[1])) > 0.24 * h:
+        return False
+    if not (eye_y + 0.04 * h < float(nose[1]) < mouth_y):
+        return False
+    if mouth_y - float(nose[1]) < 0.035 * h:
+        return False
+
+    ih, iw = frame.shape[:2]
+    x1, y1 = max(0, int(x)), max(0, int(y))
+    x2, y2 = min(iw, int(x + w)), min(ih, int(y + h))
+    if x2 <= x1 or y2 <= y1:
+        return False
+    crop = frame[y1:y2, x1:x2]
+    gray = cv.cvtColor(crop, cv.COLOR_BGR2GRAY)
+    if gray.size == 0 or cv.Laplacian(gray, cv.CV_64F).var() < 24.0:
+        return False
+    mean_light = float(gray.mean())
+    return 22.0 <= mean_light <= 238.0
+
+
 def crop_and_save_face(img, box, crops_dir):
     h_img, w_img = img.shape[:2]
     x, y, w, h = box.astype(int)
@@ -575,8 +619,10 @@ class VideoGrabber(threading.Thread):
         # This is the *analysis* stream only; the browser continues to use the
         # original RTSP stream.  Two frames/sec at 640x360 is enough for face
         # tracking while keeping the decoder and YuNet CPU use low.
-        width = 640
-        height = 360
+        # Preserve source detail for clear saved face crops. YuNet detection
+        # is resized separately, so inference cost remains bounded.
+        width = 1280
+        height = 720
         frame_size = width * height * 3
         
         reconnect_delay = 1.0
@@ -709,7 +755,7 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
     STD_TRACK_MAX_DIST_FACTOR = 0.12   # fraction of frame width used as match radius
     STD_TRACK_STALE_S = 1.5            # survive missed frames at the 2-FPS analysis rate
     STD_RECOGNIZE_RETRY_S = 2.0        # re-attempt recognition for an unknown track this often
-    FACE_DETECTION_MIN_CONF = 0.72      # reject common shoulder/background false positives
+    FACE_DETECTION_MIN_CONF = 0.82
 
     last_frame_time = 0.0
     last_line_mode = bool(line_crossing_enabled)
@@ -785,7 +831,7 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                     x, y, w, h = box.astype(int)
                     conf = f_orig[-1]
                     
-                    if w < 15 or h < 15 or conf < FACE_DETECTION_MIN_CONF:
+                    if not is_usable_live_face(frame, f_orig, FACE_DETECTION_MIN_CONF):
                         continue
                         
                     cx = x + w / 2
@@ -886,7 +932,8 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                                     "camera_name": camera_name,
                                     "event_uuid": event_uuid,
                                     "box": [int(x), int(y), int(w), int(h)],
-                                    "crop_filename": crop_filename
+                                    "crop_filename": crop_filename,
+                                    "detection_score": float(conf)
                                 }) + "\n")
                                 sys.stdout.flush()
                                 
@@ -967,7 +1014,7 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                     x, y, w, h = box.astype(int)
                     conf = f_orig[-1]
 
-                    if w < 15 or h < 15 or conf < FACE_DETECTION_MIN_CONF:
+                    if not is_usable_live_face(frame, f_orig, FACE_DETECTION_MIN_CONF):
                         continue
 
                     cx = x + w / 2
@@ -1018,7 +1065,8 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                             "camera_name": camera_name,
                             "event_uuid": best_match["event_uuid"],
                             "box": [int(x), int(y), int(w), int(h)],
-                            "crop_filename": crop_filename
+                            "crop_filename": crop_filename,
+                            "detection_score": float(conf)
                         }) + "\n")
                         sys.stdout.flush()
                     else:
