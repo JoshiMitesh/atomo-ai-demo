@@ -268,7 +268,7 @@ def _box_overlap(box_a, box_b):
 
 
 def deduplicate_faces(faces, iou_threshold=0.35, containment_threshold=0.75,
-                      center_distance_factor=0.80):
+                      center_distance_factor=0.35):
     """Keep one high-confidence detection for each physical face."""
     if faces is None or len(faces) < 2:
         return faces
@@ -650,9 +650,11 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
         
     # A crossing needs at least one face position on each side of the line.
     # Keep ordinary recognition at 2 FPS. 2.3 FPS is sufficient for the
-    # line tracker (which retains tracks for 1.5 seconds), while substantially
-    # reducing CPU versus the previous 5-FPS line stream.
-    grabber = VideoGrabber(rtsp_url, camera_id, target_fps=2.3 if line_crossing_enabled else 2)
+    # line tracker (which retains tracks across short detector misses), while
+    # remaining light enough for the edge device. Three FPS gives two people
+    # crossing together enough temporal samples without returning to the old
+    # CPU-heavy 5-FPS stream.
+    grabber = VideoGrabber(rtsp_url, camera_id, target_fps=3 if line_crossing_enabled else 2)
     grabber.start()
     
     last_event_time = {}
@@ -664,7 +666,7 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
     # Face tracking state (line-crossing mode)
     tracked_faces = []
     next_track_id = 0
-    LINE_TRACK_STALE_S = 1.5  # must be longer than the 2.3-FPS frame interval
+    LINE_TRACK_STALE_S = 1.0  # longer than the 3-FPS interval, short enough to avoid track reuse
 
     # Face tracking state (standard mode) — lets a visible face keep the
     # same event_uuid across frames instead of being gated to one detection
@@ -796,6 +798,11 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                                     # 1. Standard crossing: track started above the band
                                     if best_match.get("initial_y", cy) < y_line - band:
                                         has_started_other_side = True
+                                    # Use the track history too: when two people
+                                    # overlap briefly, the first reliable point
+                                    # may be a later sample rather than initial_y.
+                                    elif min(best_match["ys"][:-1] or [cy]) < y_line - (band * 0.5):
+                                        has_started_other_side = True
                                     # 2. Low-FPS recovery: track started just above the line but has now crossed significantly
                                     elif len(best_match["ys"]) >= 2 and best_match["ys"][-1] > best_match["ys"][0] and best_match.get("initial_y", cy) < (y_line + h_img * 0.15):
                                         if abs(best_match.get("initial_y", cy) - y_line) > band:
@@ -805,6 +812,8 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                                 if cy < y_line - band:
                                     # 1. Standard crossing: track started below the band
                                     if best_match.get("initial_y", cy) > y_line + band:
+                                        has_started_other_side = True
+                                    elif max(best_match["ys"][:-1] or [cy]) > y_line + (band * 0.5):
                                         has_started_other_side = True
                                     # 2. Low-FPS recovery: track started just below the line but has now crossed significantly
                                     elif len(best_match["ys"]) >= 2 and best_match["ys"][-1] < best_match["ys"][0] and best_match.get("initial_y", cy) > (y_line - h_img * 0.15):
