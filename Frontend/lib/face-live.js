@@ -1619,7 +1619,9 @@ function mapResultFaces(result, frameW = 1920, frameH = 1080) {
       match: f.match || (f.person_id ? { person_id: f.person_id, name: f.name } : null),
       match_score: matchScore,
       detection_score: detectionScore,
-      track_id: f.track_id ?? f.trackId ?? null,
+      // face_worker correlates detect/recognize with event_uuid. Preserve it
+      // as the stable visit ID instead of guessing identity from screen position.
+      track_id: f.track_id ?? f.trackId ?? f.event_uuid ?? null,
       crop_filename: f.crop_filename || null,
       crossed: f.crossed === true,
       frame_w: fw,
