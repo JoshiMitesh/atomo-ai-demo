@@ -649,18 +649,14 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
 
         
     # A crossing needs at least one face position on each side of the line.
-    # Keep ordinary recognition at 2 FPS. 2.3 FPS is sufficient for the
-    # line tracker (which retains tracks across short detector misses), while
-    # remaining light enough for the edge device. Three FPS gives two people
-    # crossing together enough temporal samples without returning to the old
-    # CPU-heavy 5-FPS stream.
-    grabber = VideoGrabber(rtsp_url, camera_id, target_fps=3 if line_crossing_enabled else 2)
+    # Four line-analysis samples/sec reliably retain two people crossing
+    # together while browser playback remains on its separate WHEP stream.
+    grabber = VideoGrabber(rtsp_url, camera_id, target_fps=4 if line_crossing_enabled else 2)
     grabber.start()
     
     last_event_time = {}
-    # YuNet input is intentionally small: detection happens on the 640x360
-    # analysis stream above, then coordinates are scaled back for events.
-    det_width = 320
+    # Keep enough detail in tripwire mode to separate nearby/smaller faces.
+    det_width = 480 if line_crossing_enabled else 320
     recent_events = []
 
     # Face tracking state (line-crossing mode)
@@ -702,6 +698,10 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
             line_direction = live_line.get("direction", line_direction)
             line_x_start = float(live_line.get("x_start", line_x_start))
             line_x_end = float(live_line.get("x_end", line_x_end))
+            line_x1 = float(live_line.get("line_x1", line_x_start))
+            line_y1 = float(live_line.get("line_y1", line_y))
+            line_x2 = float(live_line.get("line_x2", line_x_end))
+            line_y2 = float(live_line.get("line_y2", line_y))
             if line_crossing_enabled != last_line_mode:
                 tracked_faces = []
                 std_tracked_faces = []
@@ -735,6 +735,10 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                 y_line = h_img * line_y
                 x_start = w_img * line_x_start
                 x_end = w_img * line_x_end
+                segment_dx = line_x2 - line_x1
+                segment_dy = line_y2 - line_y1
+                segment_len_sq = max(segment_dx * segment_dx + segment_dy * segment_dy, 1e-8)
+                segment_len = np.sqrt(segment_len_sq)
                 
                 for f in faces:
                     f_orig = f.copy()
@@ -750,6 +754,19 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                         
                     cx = x + w / 2
                     cy = y + h / 2
+                    ncx = cx / max(1.0, w_img)
+                    ncy = cy / max(1.0, h_img)
+                    # Signed perpendicular distance from the actual two-point
+                    # tripwire. Positive is the below/"in" side for a line
+                    # stored left-to-right.
+                    line_side = (
+                        segment_dx * (ncy - line_y1)
+                        - segment_dy * (ncx - line_x1)
+                    ) / segment_len
+                    segment_t = (
+                        (ncx - line_x1) * segment_dx
+                        + (ncy - line_y1) * segment_dy
+                    ) / segment_len_sq
                     
                     best_match = None
                     best_dist = float('inf')
@@ -783,51 +800,45 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                         best_match["last_center"] = (cx, cy)
                         best_match["last_seen"] = now
                         best_match["ys"].append(cy)
+                        previous_sides = list(best_match.get("sides", []))
+                        best_match.setdefault("sides", []).append(line_side)
                         if len(best_match["ys"]) > 10:
                             best_match["ys"].pop(0)
+                        if len(best_match["sides"]) > 10:
+                            best_match["sides"].pop(0)
                             
                         crossed_trigger = False
                         if not best_match["crossed"]:
-                            # Hysteresis band to prevent false crossing triggers for people standing/sitting near the line
-                            band = h_img * 0.03
-                            has_started_other_side = False
-                            
-                            # Standardize check: must start on the other side of the band and cross completely
-                            if line_direction == 'in' or line_direction == 'both':
-                                if cy > y_line + band:
-                                    # 1. Standard crossing: track started above the band
-                                    if best_match.get("initial_y", cy) < y_line - band:
-                                        has_started_other_side = True
-                                    # Use the track history too: when two people
-                                    # overlap briefly, the first reliable point
-                                    # may be a later sample rather than initial_y.
-                                    elif min(best_match["ys"][:-1] or [cy]) < y_line - (band * 0.5):
-                                        has_started_other_side = True
-                                    # 2. Low-FPS recovery: track started just above the line but has now crossed significantly
-                                    elif len(best_match["ys"]) >= 2 and best_match["ys"][-1] > best_match["ys"][0] and best_match.get("initial_y", cy) < (y_line + h_img * 0.15):
-                                        if abs(best_match.get("initial_y", cy) - y_line) > band:
-                                            has_started_other_side = True
-                                            
-                            if line_direction == 'out' or line_direction == 'both':
-                                if cy < y_line - band:
-                                    # 1. Standard crossing: track started below the band
-                                    if best_match.get("initial_y", cy) > y_line + band:
-                                        has_started_other_side = True
-                                    elif max(best_match["ys"][:-1] or [cy]) > y_line + (band * 0.5):
-                                        has_started_other_side = True
-                                    # 2. Low-FPS recovery: track started just below the line but has now crossed significantly
-                                    elif len(best_match["ys"]) >= 2 and best_match["ys"][-1] < best_match["ys"][0] and best_match.get("initial_y", cy) > (y_line - h_img * 0.15):
-                                        if abs(best_match.get("initial_y", cy) - y_line) > band:
-                                            has_started_other_side = True
-                                            
-                            if has_started_other_side and (x_start <= cx <= x_end):
+                            # Evaluate the actual drawn segment instead of its
+                            # old horizontal average. History survives one or
+                            # two missed frames, which is important when nearby
+                            # people partially occlude one another.
+                            side_band = 0.012
+                            prior = previous_sides or [best_match.get("initial_side", line_side)]
+                            crossed_in = (
+                                line_side >= side_band
+                                and min(prior) <= -side_band
+                            )
+                            crossed_out = (
+                                line_side <= -side_band
+                                and max(prior) >= side_band
+                            )
+                            direction_ok = (
+                                (line_direction == 'in' and crossed_in)
+                                or (line_direction == 'out' and crossed_out)
+                                or (line_direction == 'both' and (crossed_in or crossed_out))
+                            )
+                            # Allow a small endpoint tolerance equal to 5% of
+                            # line length so a face centered on an endpoint is
+                            # not lost due to detector jitter.
+                            if direction_ok and -0.05 <= segment_t <= 1.05:
                                 crossed_trigger = True
                                     
                         if crossed_trigger:
                             # Detection confidence was already quality-filtered above.
                             if conf >= FACE_DETECTION_MIN_CONF:
                                 best_match["crossed"] = True
-                                log(f"[{camera_id}] Track #{best_match['id']} crossed line Y={int(y_line)} (X span: {int(x_start)}-{int(x_end)}) in direction: {line_direction}")
+                                log(f"[{camera_id}] Track #{best_match['id']} crossed drawn segment in direction: {line_direction}")
                                 
                                 event_uuid = best_match["event_uuid"]
                                 crop_filename = crop_and_save_face(frame, box, crops_dir)
@@ -866,7 +877,9 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                             "crossed": False,
                             "last_seen": now,
                             "ys": [cy],
-                            "initial_y": cy
+                            "initial_y": cy,
+                            "sides": [line_side],
+                            "initial_side": line_side
                         }
                         next_track_id += 1
                         current_tracked.append(new_tf)
@@ -1155,6 +1168,10 @@ def main():
                 line_direction = req.get("line_direction", "in")
                 line_x_start = req.get("line_x_start", 0.0)
                 line_x_end = req.get("line_x_end", 1.0)
+                line_x1 = req.get("line_x1", line_x_start)
+                line_y1 = req.get("line_y1", line_y)
+                line_x2 = req.get("line_x2", line_x_end)
+                line_y2 = req.get("line_y2", line_y)
                 
                 with candidates_lock:
                     candidates = local_candidates
@@ -1166,6 +1183,10 @@ def main():
                         "direction": line_direction,
                         "x_start": float(line_x_start),
                         "x_end": float(line_x_end),
+                        "line_x1": float(line_x1),
+                        "line_y1": float(line_y1),
+                        "line_x2": float(line_x2),
+                        "line_y2": float(line_y2),
                     }
                 
                 with streams_lock:
@@ -1200,6 +1221,10 @@ def main():
                         "direction": req.get("direction", "in"),
                         "x_start": float(req.get("x_start", 0.0)),
                         "x_end": float(req.get("x_end", 1.0)),
+                        "line_x1": float(req.get("line_x1", req.get("x_start", 0.0))),
+                        "line_y1": float(req.get("line_y1", req.get("line_y", 0.6))),
+                        "line_x2": float(req.get("line_x2", req.get("x_end", 1.0))),
+                        "line_y2": float(req.get("line_y2", req.get("line_y", 0.6))),
                     }
                 res = {
                     "status": "success",
