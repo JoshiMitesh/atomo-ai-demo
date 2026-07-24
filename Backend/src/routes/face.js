@@ -634,6 +634,66 @@ router.post('/persons/:id/enroll/image', requireAuth, imageUpload.single('image'
   } catch (err) { res.status(422).json({ error: err.message }); }
 });
 
+// Enroll embeddings that were already extracted from a live unknown-face
+// cluster. This avoids running face detection a second time on small crops,
+// which previously accepted only one photo from many otherwise valid crops.
+router.post('/persons/:id/enroll/embeddings', requireAuth, async (req, res) => {
+  const person = personStore.getPerson(req.params.id);
+  if (!person) return res.status(404).json({ error: 'Person not found' });
+
+  const supplied = Array.isArray(req.body?.embeddings) ? req.body.embeddings : [];
+  const images = Array.isArray(req.body?.images) ? req.body.images : [];
+  const accepted = [];
+  const filenames = [];
+
+  for (let i = 0; i < supplied.length; i += 1) {
+    const embedding = supplied[i];
+    if (!Array.isArray(embedding) || embedding.length < 64) continue;
+    const numeric = embedding.map(Number);
+    if (numeric.some(v => !Number.isFinite(v))) continue;
+
+    let filename = `cluster_embedding_${Date.now()}_${i}.jpg`;
+    const sourceImage = images.length ? images[i % images.length] : null;
+    const rawImage = typeof sourceImage === 'string'
+      ? sourceImage.replace(/^data:image\/\w+;base64,/, '')
+      : '';
+    if (rawImage) {
+      try {
+        const image = Buffer.from(rawImage, 'base64');
+        if (image.length >= 64) {
+          filename = `cluster_${Date.now()}_${i}.jpg`;
+          fs.writeFileSync(path.join(UPLOAD_DIR, filename), image);
+        }
+      } catch {
+        // The embedding remains usable even when its display crop is invalid.
+      }
+    }
+    accepted.push(numeric);
+    filenames.push(filename);
+  }
+
+  if (!accepted.length) {
+    return res.status(400).json({ error: 'No valid embeddings supplied' });
+  }
+
+  try {
+    const before = person.embeddings.length;
+    personStore.addEmbeddings(person.person_id, accepted, filenames);
+    if (bridge.isReady()) await bridge.updateCandidates(personStore.getCandidatesPayload());
+    const embeddingCount = personStore.getPerson(person.person_id).embeddings.length;
+    return res.json({
+      person_id: person.person_id,
+      name: person.name,
+      supplied_count: supplied.length,
+      added_count: embeddingCount - before,
+      embedding_count: embeddingCount,
+      message: `${embeddingCount - before} cluster embeddings added`,
+    });
+  } catch (err) {
+    return res.status(422).json({ error: err.message });
+  }
+});
+
 // ── Enroll from video ─────────────────────────────────────────
 router.post('/persons/:id/enroll/video', requireAuth, videoUpload.single('video'), async (req, res) => {
   const person = personStore.getPerson(req.params.id);
