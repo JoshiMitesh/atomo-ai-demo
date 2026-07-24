@@ -270,6 +270,16 @@ class FaceWorkerBridge extends EventEmitter {
   updateCandidates(candidates = []) {
     return this._send('update_candidates', { candidates });
   }
+  updateLineConfig(cameraId, lineConfig = {}) {
+    return this._send('update_line_config', {
+      camera_id: cameraId,
+      enabled: Boolean(lineConfig.enabled),
+      line_y: Number(lineConfig.line_y ?? 0.6),
+      direction: lineConfig.direction || 'in',
+      x_start: Number(lineConfig.x_start ?? 0),
+      x_end: Number(lineConfig.x_end ?? 1),
+    });
+  }
   getLatestStreamResult(cameraId) {
     const entry = this.latestStreamResults.get(cameraId);
     if (!entry) return null;
