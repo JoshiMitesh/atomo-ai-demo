@@ -173,15 +173,30 @@ class FaceWorkerBridge extends EventEmitter {
 
     // Box-only position update — no new event, just keep the face box fresh on the UI overlay
     if (msg.event === 'stream_box_update') {
-      const entry = this.latestStreamResults.get(msg.camera_id);
-      if (entry) {
-        const existing = entry.facesMap.get(msg.event_uuid);
-        if (existing && msg.box) {
-          existing.box = msg.box;
-          existing._ts = Date.now();   // refresh TTL so the face stays visible
-          entry.updated_at = Date.now();
-        }
+      const entry = this._getCameraEntry(msg.camera_id, msg.camera_name);
+      const existing = entry.facesMap.get(msg.event_uuid);
+      if (existing && msg.box) {
+        existing.box = msg.box;
+        existing._ts = Date.now();   // refresh TTL so the face stays visible
+      } else if (msg.box) {
+        // In tripwire mode a box exists before an event does. Keep this
+        // overlay-only entry local; stream_detect is still emitted only when
+        // the tracked face crosses the configured line.
+        entry.facesMap.set(msg.event_uuid, {
+          event_uuid: msg.event_uuid,
+          box: msg.box,
+          crop_filename: null,
+          is_known: false,
+          match: null,
+          score: 0,
+          embedding: null,
+          gender: null,
+          status: 'tracking',
+          _ts: Date.now(),
+        });
       }
+      entry.updated_at = Date.now();
+      this._pruneFaces(entry);
       return;
     }
 
