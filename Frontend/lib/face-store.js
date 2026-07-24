@@ -207,11 +207,62 @@ function getPerson(personId) {
   return hit ? normalizePerson(hit) : null;
 }
 
+function normalizedPersonName(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
+function mergeDuplicatePersonsByName() {
+  const db = readDb();
+  const groups = new Map();
+  for (const person of db.persons) {
+    const key = normalizedPersonName(person.fullName);
+    if (!key) continue;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(person);
+  }
+
+  let merged = 0;
+  for (const duplicates of groups.values()) {
+    if (duplicates.length < 2) continue;
+    duplicates.sort((a, b) =>
+      (Number(b.embeddingCount) || 0) - (Number(a.embeddingCount) || 0)
+      || new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
+    );
+    const primary = duplicates[0];
+    for (const extra of duplicates.slice(1)) {
+      primary.embeddingCount = Math.max(
+        Number(primary.embeddingCount) || 0,
+        Number(extra.embeddingCount) || 0,
+      );
+      primary.backendPersonId = primary.backendPersonId || extra.backendPersonId || null;
+      if (!getProfileImagePath(primary.id) && getProfileImagePath(extra.id)) {
+        const image = getProfileImageBase64(extra.id);
+        if (image) primary.profileImageUrl = saveProfileImage(primary.id, image);
+      }
+      primary.authorizationStatus = primary.authorizationStatus === 'authorized'
+        ? primary.authorizationStatus
+        : (extra.authorizationStatus || primary.authorizationStatus);
+      primary.updatedAt = new Date().toISOString();
+      db.persons = db.persons.filter(p => p.id !== extra.id);
+      deleteProfileImage(extra.id);
+      merged += 1;
+    }
+  }
+  if (merged) writeDb(db);
+  return { ok: true, merged };
+}
+
 function createPerson(body = {}) {
   if (!body.fullName || !String(body.fullName).trim()) {
     return { ok: false, error: 'Full name is required' };
   }
   const db = readDb();
+  const sameName = db.persons.find(
+    p => normalizedPersonName(p.fullName) === normalizedPersonName(body.fullName)
+  );
+  if (sameName) {
+    return { ok: true, person: normalizePerson(sameName), reused: true };
+  }
   const id = randomUUID();
   const now = new Date().toISOString();
   const person = normalizePerson({
@@ -244,7 +295,30 @@ function updatePerson(personId, patch = {}) {
   const idx = db.persons.findIndex((p) => p.id === personId);
   if (idx < 0) return { ok: false, error: 'Person not found' };
   const current = db.persons[idx];
-  if (patch.fullName !== undefined) current.fullName = String(patch.fullName).trim();
+  if (patch.fullName !== undefined) {
+    const incomingName = String(patch.fullName).trim();
+    const duplicate = db.persons.find(
+      p => p.id !== personId
+        && normalizedPersonName(p.fullName) === normalizedPersonName(incomingName)
+    );
+    if (duplicate) {
+      duplicate.embeddingCount = Math.max(
+        Number(duplicate.embeddingCount) || 0,
+        Number(current.embeddingCount) || 0,
+      );
+      duplicate.backendPersonId = duplicate.backendPersonId || current.backendPersonId || null;
+      if (!getProfileImagePath(duplicate.id) && getProfileImagePath(current.id)) {
+        const image = getProfileImageBase64(current.id);
+        if (image) duplicate.profileImageUrl = saveProfileImage(duplicate.id, image);
+      }
+      duplicate.updatedAt = new Date().toISOString();
+      db.persons.splice(idx, 1);
+      writeDb(db);
+      deleteProfileImage(personId);
+      return { ok: true, person: normalizePerson(duplicate), merged: true, mergedFrom: personId };
+    }
+    current.fullName = incomingName;
+  }
   if (patch.personId !== undefined) current.personId = String(patch.personId).trim();
   if (patch.groupId !== undefined) current.groupId = getGroup(patch.groupId)?.id || current.groupId;
   if (patch.role !== undefined) current.role = String(patch.role).trim();
@@ -478,6 +552,7 @@ module.exports = {
   deleteGroup,
   listPersons,
   getPerson,
+  mergeDuplicatePersonsByName,
   createPerson,
   updatePerson,
   deletePerson,
