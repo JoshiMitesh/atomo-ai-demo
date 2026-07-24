@@ -252,6 +252,7 @@
         </select>
         <button type="button" class="ov-cam-add-btn" id="faceAddPersonBtn">+ Add person</button>
         <button type="button" class="ov-quick-btn" id="faceBulkDeleteBtn" ${selectedIds.size ? '' : 'disabled'}>Delete selected (${selectedIds.size})</button>
+        <button type="button" class="ov-quick-btn ov-det-remove-btn" id="faceDeleteAllDatabaseBtn">Delete all identity database</button>
       </div>
       <div class="ov-face-db-grid">
         ${pageItems.length ? pageItems.map((p) => `
@@ -289,14 +290,20 @@
     if (!boardPersons.length) {
       return `
         <article class="ov-card ov-face-panel" style="margin-top:16px">
-          <div class="ov-merged-head"><h3>Board identity clusters</h3><p class="ov-merged-sub">Each enrolled face on the vision board is one cluster — rename unknowns here</p></div>
+          <div class="ov-merged-head">
+            <div><h3>Board identity clusters</h3><p class="ov-merged-sub">Each enrolled face on the vision board is one cluster — rename unknowns here</p></div>
+            <button type="button" class="ov-quick-btn ov-det-remove-btn" id="faceDeleteAllClustersBtn">Delete all unknown clusters</button>
+          </div>
           <div class="ov-merged-divider"></div>
           <p class="ov-det-empty">No board persons yet — enroll on the board or start live recognition.</p>
         </article>`;
     }
     return `
       <article class="ov-card ov-face-panel" style="margin-top:16px">
-        <div class="ov-merged-head"><h3>Board identity clusters</h3><p class="ov-merged-sub">One person = one cluster on the board. Rename unknown clusters below.</p></div>
+        <div class="ov-merged-head">
+          <div><h3>Board identity clusters</h3><p class="ov-merged-sub">One person = one cluster on the board. Rename unknown clusters below.</p></div>
+          <button type="button" class="ov-quick-btn ov-det-remove-btn" id="faceDeleteAllClustersBtn">Delete all unknown clusters</button>
+        </div>
         <div class="ov-merged-divider"></div>
         <div class="ov-face-db-grid">
           ${boardPersons.map((p) => `
@@ -931,6 +938,32 @@
       });
       selectedIds.clear();
       showToast('Persons deleted');
+      await reload();
+    });
+
+    document.getElementById('faceDeleteAllDatabaseBtn')?.addEventListener('click', async () => {
+      const warning = 'Permanently delete ALL enrolled identities and face embeddings from the dashboard and vision board? Cameras, settings and events will not be deleted.';
+      if (!confirm(warning)) return;
+      const res = await fetch(sessionUrl('/api/face/database/all'), { method: 'DELETE' });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(result.error || 'Database deletion failed', 'error');
+        return;
+      }
+      selectedIds.clear();
+      showToast(`Identity database cleared (${result.boardDeleted || 0} board identities)`);
+      await reload();
+    });
+
+    document.getElementById('faceDeleteAllClustersBtn')?.addEventListener('click', async () => {
+      if (!confirm('Permanently delete ALL unknown-face clusters and their saved photos? Enrolled identities will remain.')) return;
+      const res = await fetch(sessionUrl('/api/face/clusters/all'), { method: 'DELETE' });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(result.error || 'Cluster deletion failed', 'error');
+        return;
+      }
+      showToast(`Unknown clusters cleared (${result.boardDeleted || 0} board clusters)`);
       await reload();
     });
 
