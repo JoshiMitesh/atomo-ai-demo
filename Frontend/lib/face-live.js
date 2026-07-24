@@ -1272,24 +1272,6 @@ async function setLineConfig(cameraId, body) {
     crossTrackLastSeenAt.delete(backendId);
     clearLocalCrossingState(backendId);
     const saved = savedLineByBackend.get(backendId) || localNorm;
-    let restarted = Boolean(data.restarted);
-    let restartError = null;
-    if (isFaceCameraRunning(cameraId) && !restarted && saved?.line_x1 != null) {
-      try {
-        const state = detectionStore.getModelState(FACE_SLUG);
-        await faceClient.apiJson('/api/face/stream/stop', {
-          method: 'POST',
-          body: { camera_id: backendId },
-        });
-        await faceClient.apiJson('/api/face/stream/start', {
-          method: 'POST',
-          body: buildFaceStreamStartBody(backendId, state, toWorkerLineFields(saved)),
-        });
-        restarted = true;
-      } catch (restartErr) {
-        restartError = restartErr.message;
-      }
-    }
     return {
       ok: true,
       camera_id: backendId,
@@ -1298,8 +1280,9 @@ async function setLineConfig(cameraId, body) {
       line_y1: saved?.line_y1,
       line_x2: saved?.line_x2,
       line_y2: saved?.line_y2,
-      restarted,
-      restartError,
+      hotUpdated: Boolean(data.hot_updated),
+      restarted: false,
+      restartError: null,
       dashboardCameraId: cameraId,
       backendCameraId: backendId,
       boardRaw: data,
@@ -1343,30 +1326,13 @@ async function clearLineConfig(cameraId) {
       `/api/face/stream/line-config/${encodeURIComponent(backendId)}`,
       { method: 'DELETE' },
     );
-    let restarted = false;
-    let restartError = null;
-    if (isFaceCameraRunning(cameraId)) {
-      try {
-        const state = detectionStore.getModelState(FACE_SLUG);
-        await faceClient.apiJson('/api/face/stream/stop', {
-          method: 'POST',
-          body: { camera_id: backendId },
-        });
-        await faceClient.apiJson('/api/face/stream/start', {
-          method: 'POST',
-          body: buildFaceStreamStartBody(backendId, state),
-        });
-        restarted = true;
-      } catch (restartErr) {
-        restartError = restartErr.message;
-      }
-    }
     console.log('[FaceTripwire] board DELETE line-config OK', data);
     return {
       ok: true,
       ...data,
-      restarted,
-      restartError,
+      hotUpdated: Boolean(data.hot_updated),
+      restarted: false,
+      restartError: null,
       dashboardCameraId: cameraId,
       backendCameraId: backendId,
     };
