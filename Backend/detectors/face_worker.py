@@ -133,6 +133,8 @@ recog_lock = threading.Lock()
 stream_threads = {}
 stream_stop_events = {}
 streams_lock = threading.Lock()
+stream_line_configs = {}
+stream_config_lock = threading.Lock()
 
 
 
@@ -676,6 +678,7 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
     FACE_DETECTION_MIN_CONF = 0.72      # reject common shoulder/background false positives
 
     last_frame_time = 0.0
+    last_line_mode = bool(line_crossing_enabled)
     
     try:
         while not stop_event.is_set():
@@ -687,6 +690,20 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
             now = time.time()
             dt = now - last_frame_time if last_frame_time > 0.0 else 0.2
             last_frame_time = now
+
+            # Tripwire settings are hot-updated by update_line_config. Reading
+            # them here avoids stopping FFmpeg or restarting face recognition.
+            with stream_config_lock:
+                live_line = dict(stream_line_configs.get(camera_id, {}))
+            line_crossing_enabled = bool(live_line.get("enabled", line_crossing_enabled))
+            line_y = float(live_line.get("line_y", line_y))
+            line_direction = live_line.get("direction", line_direction)
+            line_x_start = float(live_line.get("x_start", line_x_start))
+            line_x_end = float(live_line.get("x_end", line_x_end))
+            if line_crossing_enabled != last_line_mode:
+                tracked_faces = []
+                std_tracked_faces = []
+                last_line_mode = line_crossing_enabled
             
             h_img, w_img = frame.shape[:2]
             
@@ -1117,6 +1134,15 @@ def main():
                 
                 with candidates_lock:
                     candidates = local_candidates
+
+                with stream_config_lock:
+                    stream_line_configs[camera_id] = {
+                        "enabled": bool(line_crossing_enabled),
+                        "line_y": float(line_y),
+                        "direction": line_direction,
+                        "x_start": float(line_x_start),
+                        "x_end": float(line_x_end),
+                    }
                 
                 with streams_lock:
                     # Stop stream if running
@@ -1140,6 +1166,27 @@ def main():
                 res = {"status": "success", "message": f"Camera stream thread {camera_id} started."}
                 sys.stdout.write(json.dumps({"cmd": "start_stream", "camera_id": camera_id, "response": res}) + "\n")
                 sys.stdout.flush()
+
+            elif cmd == "update_line_config":
+                camera_id = req.get("camera_id")
+                with stream_config_lock:
+                    stream_line_configs[camera_id] = {
+                        "enabled": bool(req.get("enabled", False)),
+                        "line_y": float(req.get("line_y", 0.6)),
+                        "direction": req.get("direction", "in"),
+                        "x_start": float(req.get("x_start", 0.0)),
+                        "x_end": float(req.get("x_end", 1.0)),
+                    }
+                res = {
+                    "status": "success",
+                    "message": f"Line config for {camera_id} updated without restarting stream."
+                }
+                sys.stdout.write(json.dumps({
+                    "cmd": "update_line_config",
+                    "camera_id": camera_id,
+                    "response": res
+                }) + "\n")
+                sys.stdout.flush()
                 
             elif cmd == "stop_stream":
                 camera_id = req.get("camera_id")
@@ -1155,6 +1202,8 @@ def main():
                                 del stream_threads[cid]
                                 if cid in stream_stop_events:
                                     del stream_stop_events[cid]
+                                with stream_config_lock:
+                                    stream_line_configs.pop(cid, None)
                         
                         threading.Thread(target=cleanup_thread, args=(camera_id,), daemon=True).start()
                         res = {"status": "success", "message": f"Camera {camera_id} stopped."}
