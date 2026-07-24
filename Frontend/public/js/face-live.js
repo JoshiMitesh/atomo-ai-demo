@@ -1457,14 +1457,15 @@
       }
       startPolling();
       await pollFrame();
-      // Remount/reload can wipe UI — restore tripwire AFTER reload completes.
-      if (start && window.DetectionTab?.reload) {
-        tripwireLog('DetectionTab.reload after recognition start (will remount Face UI)');
-        await window.DetectionTab.reload();
-      }
+      // Keep the existing video element and its WHEP/HLS transport alive.
+      // Reloading DetectionTab here rebuilt the face-live DOM: the overlay
+      // resumed from recognition data, but the underlying video became black.
+      // The response/poll above already refreshes payload, metrics and events,
+      // so recognition state can be updated safely in place.
+      window.CameraManagement?.refreshStreamStates?.();
       if (preservedLine?.enabled) {
         lineConfig = preservedLine;
-        tripwireLog('Restored tripwire after remount', lineConfig);
+        tripwireLog('Kept tripwire while recognition started', lineConfig);
       }
       await loadLineConfig();
       if (!lineConfig && preservedLine?.enabled) {
