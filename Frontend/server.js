@@ -1029,6 +1029,7 @@ app.delete('/api/face/groups/:groupId', (req, res) => {
 app.get('/api/face/persons', (req, res) => {
   const sess = resolveSession(req);
   if (!sess) return res.status(401).json({ error: 'You must be signed in.' });
+  const dedupe = faceStore.mergeDuplicatePersonsByName();
   const persons = faceStore.listPersons({
     q: req.query.q,
     groupId: req.query.groupId,
@@ -1036,7 +1037,7 @@ app.get('/api/face/persons', (req, res) => {
     sortBy: req.query.sortBy,
     sortDir: req.query.sortDir,
   });
-  return res.json({ persons, statistics: faceStore.getStatistics() });
+  return res.json({ persons, statistics: faceStore.getStatistics(), mergedDuplicates: dedupe.merged });
 });
 
 app.get('/api/face/persons/:personId', (req, res) => {
