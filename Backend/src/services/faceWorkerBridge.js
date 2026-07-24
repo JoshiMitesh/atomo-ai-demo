@@ -267,12 +267,17 @@ class FaceWorkerBridge extends EventEmitter {
       direction:   line_direction     = 'in',
       x_start:     line_x_start       = 0.0,
       x_end:       line_x_end         = 1.0,
+      line_x1 = line_x_start,
+      line_y1 = line_y,
+      line_x2 = line_x_end,
+      line_y2 = line_y,
     } = lineConfig;
     this.latestStreamResults.delete(cameraId); // drop stale faces from any previous run
     return this._send('start_stream', {
       camera_id: cameraId, camera_name: cameraName, rtsp_url: rtspUrl,
       candidates, threshold, dis_type: disType, crops_dir: cropsDir,
       line_crossing_enabled, line_y, line_direction, line_x_start, line_x_end,
+      line_x1, line_y1, line_x2, line_y2,
     }).then(result => {
       this.activeStreams.add(cameraId);
       // An active stream with no detected faces is a valid empty result, not
@@ -298,6 +303,10 @@ class FaceWorkerBridge extends EventEmitter {
       camera_id: cameraId,
       enabled: Boolean(lineConfig.enabled),
       line_y: Number(lineConfig.line_y ?? 0.6),
+      line_x1: Number(lineConfig.line_x1 ?? lineConfig.x_start ?? 0),
+      line_y1: Number(lineConfig.line_y1 ?? lineConfig.line_y ?? 0.6),
+      line_x2: Number(lineConfig.line_x2 ?? lineConfig.x_end ?? 1),
+      line_y2: Number(lineConfig.line_y2 ?? lineConfig.line_y ?? 0.6),
       direction: lineConfig.direction || 'in',
       x_start: Number(lineConfig.x_start ?? 0),
       x_end: Number(lineConfig.x_end ?? 1),
