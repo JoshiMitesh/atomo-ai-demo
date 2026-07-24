@@ -344,8 +344,43 @@
     };
   }
 
+  function dedupeDisplayFaces(faces) {
+    const sorted = [...(faces || [])].sort(
+      (a, b) => Number(b.detection_score || 0) - Number(a.detection_score || 0),
+    );
+    const kept = [];
+    for (const face of sorted) {
+      const [x1, y1, x2, y2] = face.box || [];
+      const w = x2 - x1;
+      const h = y2 - y1;
+      const cx = (x1 + x2) / 2;
+      const cy = (y1 + y2) / 2;
+      const duplicate = kept.some((other) => {
+        const [ox1, oy1, ox2, oy2] = other.box;
+        const ow = ox2 - ox1;
+        const oh = oy2 - oy1;
+        const interW = Math.max(0, Math.min(x2, ox2) - Math.max(x1, ox1));
+        const interH = Math.max(0, Math.min(y2, oy2) - Math.max(y1, oy1));
+        const intersection = interW * interH;
+        const union = w * h + ow * oh - intersection;
+        const smaller = Math.min(w * h, ow * oh);
+        const iou = union > 0 ? intersection / union : 0;
+        const containment = smaller > 0 ? intersection / smaller : 0;
+        const ocx = (ox1 + ox2) / 2;
+        const ocy = (oy1 + oy2) / 2;
+        const centerDistance = Math.hypot(cx - ocx, cy - ocy);
+        const maxFaceSize = Math.max(w, h, ow, oh);
+        return iou >= 0.30
+          || containment >= 0.70
+          || (intersection > 0 && centerDistance <= 0.80 * maxFaceSize);
+      });
+      if (!duplicate) kept.push(face);
+    }
+    return kept;
+  }
+
   function processRawFaces(rawFaces, frameW, frameH) {
-    return (rawFaces || [])
+    const normalized = (rawFaces || [])
       .map((f) => {
         const box = normalizeBox(f.box, f.frame_w || frameW, f.frame_h || frameH);
         if (!box) return null;
@@ -358,6 +393,7 @@
         });
       })
       .filter(Boolean);
+    return dedupeDisplayFaces(normalized);
   }
 
   function applyDisplayFaces(faces) {
