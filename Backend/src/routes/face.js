@@ -351,6 +351,7 @@ router.get('/stream/boxes/:cameraId', requireAuth, (req, res) => {
   const boxes = (result.faces || []).map(f => {
     const [x, y, w, h] = f.box || [0, 0, 0, 0];
     return {
+      track_id: f.event_uuid || null,
       box: { x, y, w, h }, // raw pixel box (native camera frame resolution)
       box_normalized: (fw && fh) ? {
         x: x / fw,
@@ -363,6 +364,7 @@ router.get('/stream/boxes/:cameraId', requireAuth, (req, res) => {
       name:      f.match?.name || null,
       score:     f.score || 0,
       gender:    f.gender || null,
+      crop_filename: f.crop_filename || null,
     };
   });
 
