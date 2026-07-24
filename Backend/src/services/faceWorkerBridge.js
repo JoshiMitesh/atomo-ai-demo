@@ -26,7 +26,9 @@ const STREAM_FRAME_HEIGHT = 360;
 // before being pruned from the "latest result" for a camera.
 // The detector updates active tracks at ~2 FPS. Keeping disappeared tracks
 // for 15 seconds caused old and replacement boxes to be shown together.
-const FACE_TTL_MS   = 1_800;
+// The line tracker now publishes around three updates per second. A sub-second
+// TTL survives one missed analysis frame but removes departed-face boxes fast.
+const FACE_TTL_MS   = 900;
 const MAX_FACES_PER_CAMERA = 50;
 
 class FaceWorkerBridge extends EventEmitter {
