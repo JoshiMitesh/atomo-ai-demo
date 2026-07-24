@@ -269,6 +269,20 @@ router.post('/stream/start', requireAuth, async (req, res) => {
   const candidates = caps.includes('face_recognition') ? personStore.getCandidatesPayload() : [];
 
   try {
+    if (bridge.isStreamActive(camera_id)) {
+      await bridge.updateCandidates(candidates);
+      await bridge.updateLineConfig(camera_id, lineConfig);
+      return res.json({
+        started: true,
+        already_running: true,
+        hot_updated: true,
+        camera_id,
+        capabilities: caps,
+        threshold,
+        line_config: lineConfig,
+        message: 'Recognition was already running; configuration updated without restart.',
+      });
+    }
     const result = await bridge.startStream(
       camera_id, cam.name,
       cam.local_rtsp || `rtsp://localhost:8554/${camera_id}`,
