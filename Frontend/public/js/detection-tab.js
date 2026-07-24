@@ -10,7 +10,7 @@ let eventsVisibleLimit = 24;
 let eventsView = localStorage.getItem('detEventsView') || 'gallery'; // 'gallery' | 'table'
 let eventsTablePage = 1;
 /** Face tab only: 'all' | 'face' | 'line' — separate Face recognition vs Line crossed events */
-let faceEventsCategory = localStorage.getItem('detFaceEventsCategory') || 'line';
+let faceEventsCategory = localStorage.getItem('detFaceEventsCategoryV2') || 'all';
 // Signature of the currently-rendered event set, so periodic broadcasts don't
 // rebuild the gallery (and reload every <img>) when nothing actually changed.
 let lastRenderedEventsSig = null;
@@ -1329,7 +1329,7 @@ function wireEventsViewControls() {
       const next = btn.dataset.cat === 'face' ? 'face' : (btn.dataset.cat === 'all' ? 'all' : 'line');
       if (next === faceEventsCategory) return;
       faceEventsCategory = next;
-      localStorage.setItem('detFaceEventsCategory', faceEventsCategory);
+      localStorage.setItem('detFaceEventsCategoryV2', faceEventsCategory);
       eventsVisibleLimit = 24;
       eventsTablePage = 1;
       lastRenderedEventsSig = null;
