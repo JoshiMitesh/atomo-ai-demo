@@ -214,13 +214,19 @@ def compare_face_features(feat, threshold, dis_type, thread_recog):
         # Sort scores: Cosine -> descending (highest first); L2 -> ascending (lowest first)
         scores.sort(reverse=(dis_type == 0))
         
-        # Use nearest-neighbor match (highest score among all enrolled templates of this person)
+        # Keep both the nearest template and consensus across the best few.
+        # A single contaminated/outlier template must not identify a stranger.
         best_cand_score = scores[0]
+        top_scores = scores[:min(3, len(scores))]
+        consensus_score = float(sum(top_scores) / len(top_scores))
             
         cand_scores.append({
             "person_id": cand_id,
             "name": cand_name,
-            "score": best_cand_score
+            "score": best_cand_score,
+            "consensus_score": consensus_score,
+            "scores": scores,
+            "template_count": len(scores),
         })
         
     if not cand_scores:
@@ -238,15 +244,27 @@ def compare_face_features(feat, threshold, dis_type, thread_recog):
     
     is_match = False
     if dis_type == 0: # Cosine
-        # The dashboard slider is a human-facing confidence control (40-95),
-        # not the raw OpenCV SFace cosine scale. Map it to a practical SFace
-        # range: 40% -> 0.36, 95% -> 0.58.
+        # Surveillance images need a stricter open-set threshold than clean
+        # benchmark photos. Preserve the user's slider while enforcing a safe
+        # floor; 64% becomes 0.61 rather than the previous permissive 0.456.
         slider_threshold = min(0.95, max(0.40, float(threshold)))
-        effective_threshold = 0.20 + (0.40 * slider_threshold)
+        effective_threshold = max(0.55, slider_threshold - 0.03)
         margin = best_score - second_score if second_score is not None else 1.0
-        # Reject ambiguous matches between two enrolled identities even when
-        # the raw best score passes.
-        is_match = best_score >= effective_threshold and margin >= 0.025
+        support_threshold = effective_threshold - 0.045
+        support_count = sum(1 for score in best_cand["scores"] if score >= support_threshold)
+        enough_support = best_cand["template_count"] < 3 or support_count >= 2
+        consensus_ok = (
+            best_cand["template_count"] < 3
+            or best_cand["consensus_score"] >= effective_threshold - 0.055
+        )
+        # Require multiple enrolled photos to agree when a gallery is
+        # available, plus separation from the next enrolled identity.
+        is_match = (
+            best_score >= effective_threshold
+            and enough_support
+            and consensus_ok
+            and margin >= 0.035
+        )
     else: # L2
         effective_threshold = threshold
         margin = second_score - best_score if second_score is not None else 1.0
@@ -258,6 +276,8 @@ def compare_face_features(feat, threshold, dis_type, thread_recog):
             "name": best_cand["name"],
             "margin": float(margin),
             "effective_threshold": float(effective_threshold),
+            "consensus_score": float(best_cand.get("consensus_score", best_score)),
+            "support_count": int(support_count if dis_type == 0 else 1),
         }, best_score
     else:
         return None, best_score
