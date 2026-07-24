@@ -27,9 +27,9 @@
   let displayFaces = [];
   // Track-id based smoothing state to eliminate order-jitter.
   const trackBoxEma = new Map(); // trackId -> { box:[x1,y1,x2,y2], seenAt:number }
-  const TRACK_BOX_TTL_MS = 1500;
+  const TRACK_BOX_TTL_MS = 900;
 
-  const FACE_HOLD_MS = 350;
+  const FACE_HOLD_MS = 180;
   // Reduce trailing: WHEP is low latency, so keep bias small.
   let WHEP_FACE_DELAY_MS = 500;
   const HLS_FACE_DELAY_MS = 0;
@@ -1203,7 +1203,10 @@
       });
     };
 
-    if (preview.mode === 'whep' && preview.url && !preview.simulated && window.WhepPlayer && !(inferenceRunning && preview.hlsUrl)) {
+    // Recognition runs on a separate analysis stream. Keep browser playback
+    // on low-latency WHEP while inference is active; switching to HLS here
+    // added seconds of delay and made the video appear jerky.
+    if (preview.mode === 'whep' && preview.url && !preview.simulated && window.WhepPlayer) {
       if (canvas) canvas.style.display = 'none';
       if (overlay) overlay.style.display = 'block';
       const video = document.createElement('video');
