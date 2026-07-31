@@ -119,8 +119,9 @@ function scheduleSave() {
           ...rest,
           centroid: Array.isArray(c.centroid) ? c.centroid : averageEmbedding(embeddings),
           embedding_count: Array.isArray(embeddings) ? embeddings.length : (c.embedding_count || 0),
-          // Keep last few embeds so restart still clusters correctly.
-          embeddings: Array.isArray(embeddings) ? embeddings.slice(-4) : undefined,
+          // Preserve every retained cluster embedding. Keeping only four made
+          // clusters show more photos than could be enrolled after a restart.
+          embeddings: Array.isArray(embeddings) ? embeddings.slice(-MAX_EMBEDS) : undefined,
         };
       });
       fs.writeFileSync(STORE_PATH, JSON.stringify({
