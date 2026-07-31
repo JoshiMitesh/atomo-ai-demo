@@ -252,10 +252,19 @@ def compare_face_features(feat, threshold, dis_type, thread_recog):
         margin = best_score - second_score if second_score is not None else 1.0
         support_threshold = effective_threshold - 0.045
         support_count = sum(1 for score in best_cand["scores"] if score >= support_threshold)
-        enough_support = best_cand["template_count"] < 3 or support_count >= 2
+        # A gallery with pose/lighting diversity must not make recognition
+        # harder than a one-photo enrollment. Accept either two supporting
+        # templates or one clearly strong nearest template.
+        strong_single = best_score >= effective_threshold + 0.035
+        enough_support = (
+            best_cand["template_count"] < 3
+            or support_count >= 2
+            or strong_single
+        )
         consensus_ok = (
             best_cand["template_count"] < 3
             or best_cand["consensus_score"] >= effective_threshold - 0.055
+            or strong_single
         )
         # Require multiple enrolled photos to agree when a gallery is
         # available, plus separation from the next enrolled identity.
