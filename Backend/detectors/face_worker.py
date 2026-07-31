@@ -250,8 +250,8 @@ def compare_face_features(feat, threshold, dis_type, thread_recog):
         slider_threshold = min(0.95, max(0.40, float(threshold)))
         effective_threshold = max(0.48, slider_threshold - 0.04)
         margin = best_score - second_score if second_score is not None else 1.0
-        strong_match = best_score >= effective_threshold + 0.10
-        separated = second_score is None or margin >= 0.025 or strong_match
+        strong_match = best_score >= effective_threshold + 0.04
+        separated = second_score is None or margin >= 0.015 or strong_match
         is_match = (
             best_score >= effective_threshold
             and separated
