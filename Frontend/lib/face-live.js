@@ -1699,8 +1699,9 @@ async function fetchBoardCropJpeg(cropFilename) {
  * Feed unknown faces into dashboard clusters (same person → one named bunch).
  */
 function ingestUnknownFacesIntoClusters(camera, recognitionFaces) {
-  if (!camera || !Array.isArray(recognitionFaces) || !recognitionFaces.length) return;
+  if (!camera || !Array.isArray(recognitionFaces) || !recognitionFaces.length) return 0;
   const now = Date.now();
+  let changed = 0;
   for (const face of recognitionFaces) {
     if (face?.is_known) continue;
     const emb = face.embedding;
@@ -1722,7 +1723,7 @@ function ingestUnknownFacesIntoClusters(camera, recognitionFaces) {
     }
 
     try {
-      faceClusterStore.ingestUnknownFace({
+      const cluster = faceClusterStore.ingestUnknownFace({
         embedding: emb,
         cropJpeg: jpeg,
         cameraId: camera.id,
@@ -1731,10 +1732,19 @@ function ingestUnknownFacesIntoClusters(camera, recognitionFaces) {
         gender: face.gender || null,
         trackId: tid,
       });
+      if (cluster) changed += 1;
     } catch (err) {
       console.warn('[face-live] cluster ingest:', err.message);
     }
   }
+  if (changed) {
+    // Cluster cards/photos are fetched separately by the browser. Notify it
+    // immediately; otherwise they only appeared after another event/reload.
+    broadcastFaceUpdate(detectionStore.getPayload(FACE_SLUG), [], {
+      clustersUpdated: true,
+    });
+  }
+  return changed;
 }
 
 async function enrichRecognitionFaces(faces) {
