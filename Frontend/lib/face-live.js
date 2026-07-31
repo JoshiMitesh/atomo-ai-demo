@@ -403,15 +403,25 @@ function stableFaceVisitKey(backendId, face) {
 
   const box = Array.isArray(face?.box) ? face.box.slice(0, 4) : null;
   const personId = knownFacePersonId(face);
+  const sourceTrackId = face?.track_id != null
+    ? String(face.track_id)
+    : (face?.trackId != null ? String(face.trackId) : null);
   let bestKey = null;
   let bestScore = 0.18;
 
   for (const [key, visit] of visits) {
+    if (sourceTrackId && visit.sourceTrackId === sourceTrackId) {
+      bestKey = key;
+      break;
+    }
     if (personId && visit.personId === personId) {
       bestKey = key;
       break;
     }
-    if (personId || visit.personId || !box || !visit.box) continue;
+    // A visit commonly starts UNKNOWN and becomes known after a clearer frame.
+    // Permit that one-way identity upgrade when the boxes still overlap.
+    if (visit.personId && personId && visit.personId !== personId) continue;
+    if (!box || !visit.box) continue;
     if (now - visit.lastSeen > FACE_VISIT_SPATIAL_GRACE_MS) continue;
     const overlap = boxIou(box, visit.box);
     if (overlap > bestScore) {
@@ -424,7 +434,13 @@ function stableFaceVisitKey(backendId, face) {
     stableFaceVisitSequence += 1;
     bestKey = `visit:${backendId}:${stableFaceVisitSequence}`;
   }
-  visits.set(bestKey, { box, personId, lastSeen: now });
+  const previous = visits.get(bestKey);
+  visits.set(bestKey, {
+    box,
+    personId: personId || previous?.personId || null,
+    sourceTrackId: sourceTrackId || previous?.sourceTrackId || null,
+    lastSeen: now,
+  });
   return bestKey;
 }
 
@@ -634,7 +650,9 @@ function takeUnseenFaceDetectFaces(backendId, faces) {
     if (!Array.isArray(f?.box) || f.box.length < 4) return;
     const key = stableFaceVisitKey(backendId, f, idx);
     const prev = map.get(key);
-    if (prev?.emitted) return;
+    const isKnown = Boolean(f?.is_known && f?.match);
+    // Let a recognized retry upgrade the already-emitted UNKNOWN event once.
+    if (prev?.emitted && (prev.isKnown || !isKnown)) return;
 
     if (!faceHasUsablePhoto(f)) {
       if (!prev) map.set(key, { emitted: false, pending: true, at: Date.now() });
@@ -646,9 +664,12 @@ function takeUnseenFaceDetectFaces(backendId, faces) {
       pending: false,
       at: Date.now(),
       photo: facePhotoKey(f),
+      isKnown,
     });
     out.push({
       ...f,
+      // Keep the local event identity stable even if the board tracker swaps IDs.
+      track_id: key,
       crossed: false,
       line_crossed: false,
       lineCrossed: false,
