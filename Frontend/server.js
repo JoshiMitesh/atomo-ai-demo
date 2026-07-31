@@ -709,10 +709,16 @@ app.delete('/api/face/stream/line-config/:cameraId', async (req, res) => {
 // ── Face database & enrollment ──────────────────────────────────
 
 async function refreshFaceLiveAfterEnroll() {
-  const state = detectionStore.getModelState('face');
-  if (state.inferenceRunning && state.activeCameraId) {
-    await faceLive.updateLiveConfig(state.activeCameraId, {});
-  }
+  // Every board enrollment endpoint hot-updates the worker candidate list.
+  // Do not stop/restart the active camera here; that caused a recognition gap
+  // immediately after saving a person and could interrupt browser playback.
+  eventBroadcast.broadcastFaceUpdate(detectionStore.getPayload('face'), [], {
+    faceDatabase: {
+      statistics: faceStore.getStatistics(),
+      recentAlerts: faceStore.listAlerts({ status: 'active' }).slice(0, 5),
+    },
+    enrollmentUpdated: true,
+  });
 }
 
 app.get('/api/face/dashboard', (req, res) => {
