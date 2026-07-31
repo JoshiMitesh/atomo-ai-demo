@@ -244,35 +244,17 @@ def compare_face_features(feat, threshold, dis_type, thread_recog):
     
     is_match = False
     if dis_type == 0: # Cosine
-        # Surveillance images need a stricter open-set threshold than clean
-        # benchmark photos. Preserve the user's slider while enforcing a safe
-        # floor; 64% becomes 0.61 rather than the previous permissive 0.456.
+        # Match against the nearest enrolled template. A gallery intentionally
+        # contains different poses and lighting, so unrelated weak templates
+        # must not veto the one template that correctly matches the live face.
         slider_threshold = min(0.95, max(0.40, float(threshold)))
-        effective_threshold = max(0.55, slider_threshold - 0.03)
+        effective_threshold = max(0.48, slider_threshold - 0.04)
         margin = best_score - second_score if second_score is not None else 1.0
-        support_threshold = effective_threshold - 0.045
-        support_count = sum(1 for score in best_cand["scores"] if score >= support_threshold)
-        # A gallery with pose/lighting diversity must not make recognition
-        # harder than a one-photo enrollment. Accept either two supporting
-        # templates or one clearly strong nearest template.
-        strong_single = best_score >= effective_threshold + 0.035
-        enough_support = (
-            best_cand["template_count"] < 3
-            or support_count >= 2
-            or strong_single
-        )
-        consensus_ok = (
-            best_cand["template_count"] < 3
-            or best_cand["consensus_score"] >= effective_threshold - 0.055
-            or strong_single
-        )
-        # Require multiple enrolled photos to agree when a gallery is
-        # available, plus separation from the next enrolled identity.
+        strong_match = best_score >= effective_threshold + 0.10
+        separated = second_score is None or margin >= 0.025 or strong_match
         is_match = (
             best_score >= effective_threshold
-            and enough_support
-            and consensus_ok
-            and margin >= 0.035
+            and separated
         )
     else: # L2
         effective_threshold = threshold
@@ -286,7 +268,7 @@ def compare_face_features(feat, threshold, dis_type, thread_recog):
             "margin": float(margin),
             "effective_threshold": float(effective_threshold),
             "consensus_score": float(best_cand.get("consensus_score", best_score)),
-            "support_count": int(support_count if dis_type == 0 else 1),
+            "support_count": int(1),
         }, best_score
     else:
         return None, best_score
