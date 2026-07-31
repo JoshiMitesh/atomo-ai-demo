@@ -1710,7 +1710,6 @@ function ingestUnknownFacesIntoClusters(camera, recognitionFaces) {
       jpeg = jpeg.replace(/^data:image\/\w+;base64,/, '');
     }
     if (!Array.isArray(emb) || emb.length < 64) continue;
-    if (!jpeg || jpeg.length < 64) continue;
 
     const tid = face.track_id != null ? String(face.track_id) : `emb-${Math.round(emb[0] * 1000)}`;
     const key = `${camera.id}:${tid}`;
@@ -1725,7 +1724,7 @@ function ingestUnknownFacesIntoClusters(camera, recognitionFaces) {
     try {
       const cluster = faceClusterStore.ingestUnknownFace({
         embedding: emb,
-        cropJpeg: jpeg,
+        cropJpeg: jpeg || null,
         cameraId: camera.id,
         cameraName: camera.name,
         score: face.detection_score ?? face.score ?? null,
