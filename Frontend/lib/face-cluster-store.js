@@ -95,7 +95,7 @@ function load() {
     clusters.clear();
     for (const c of raw.clusters || []) {
       if (!c?.id) continue;
-      if (!Array.isArray(c.crops) || !c.crops.length) continue;
+      if (!Array.isArray(c.crops)) c.crops = [];
       // Rehydrate embeddings array for runtime matching (centroid alone after restart).
       if (!Array.isArray(c.embeddings) && Array.isArray(c.centroid)) {
         c.embeddings = [c.centroid];
@@ -222,7 +222,6 @@ function setThreshold(value) {
 function listClusters() {
   load();
   return Array.from(clusters.values())
-    .filter((c) => Array.isArray(c.crops) && c.crops.length > 0)
     .sort((a, b) => new Date(b.last_seen_at || 0) - new Date(a.last_seen_at || 0))
     .map(publicCluster);
 }
@@ -293,7 +292,7 @@ function ingestUnknownFace({
     cluster = {
       id,
       name: null,
-      embeddings: [norm],
+      embeddings: [],
       centroid: norm.slice(),
       crops: [],
       cameras: [],
@@ -315,23 +314,18 @@ function ingestUnknownFace({
   cluster.centroid = averageEmbedding(cluster.embeddings) || cluster.centroid;
 
   const cropId = `crop_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-  if (!saveCropJpeg(cluster.id, cropId, cropJpeg)) {
-    if ((cluster.crops || []).length === 0 && cluster.seen_count <= 1) {
-      clusters.delete(cluster.id);
-    }
-    return null;
+  if (saveCropJpeg(cluster.id, cropId, cropJpeg)) {
+    const cropEntry = {
+      id: cropId,
+      camera_id: cameraId || null,
+      camera_name: cameraName || null,
+      seen_at: now,
+      score: score ?? null,
+      gender: gender || null,
+    };
+    cluster.crops = [cropEntry, ...(cluster.crops || []).filter((c) => c.id !== cropId)]
+      .slice(0, MAX_CROPS);
   }
-
-  const cropEntry = {
-    id: cropId,
-    camera_id: cameraId || null,
-    camera_name: cameraName || null,
-    seen_at: now,
-    score: score ?? null,
-    gender: gender || null,
-  };
-  cluster.crops = [cropEntry, ...(cluster.crops || []).filter((c) => c.id !== cropId)]
-    .slice(0, MAX_CROPS);
 
   const camLabel = cameraName || cameraId;
   if (camLabel) {
@@ -360,10 +354,11 @@ function takeClusterForLabel(id) {
       });
     }
   }
-  if (!crops.length) throw new Error('Cluster has no photos to enroll');
+  const embeddings = Array.isArray(cluster.embeddings) ? cluster.embeddings : [];
+  if (!crops.length && !embeddings.length) throw new Error('Cluster has no face data to enroll');
   return {
     cluster: publicCluster(cluster),
-    embeddings: Array.isArray(cluster.embeddings) ? cluster.embeddings : [],
+    embeddings,
     crops,
   };
 }
