@@ -937,6 +937,7 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                                     "frame": frame.copy(),
                                     "f_orig": f_orig.copy(),
                                     "crop_filename": crop_filename,
+                                    "crops_dir": crops_dir,
                                     "threshold": threshold,
                                     "dis_type": dis_type,
                                     "recog_model": thread_recog
@@ -1086,6 +1087,7 @@ def rtsp_stream_processor(camera_id, camera_name, rtsp_url, threshold, dis_type,
                             "frame": frame.copy(),
                             "f_orig": f_orig.copy(),
                             "crop_filename": crop_filename,
+                            "crops_dir": crops_dir,
                             "threshold": threshold,
                             "dis_type": dis_type,
                             "recog_model": thread_recog,
@@ -1141,6 +1143,16 @@ def recognition_worker_thread():
             if feat is not None:
                 match, score = compare_face_features(feat, threshold, dis_type, recog_model)
                 is_known = match is not None
+
+            # Unknown tracks are retried from fresh frames. Save the current
+            # crop so their cluster gains useful pose/lighting variations
+            # instead of repeatedly attaching the first frame's photo.
+            if not is_known:
+                crops_dir = task.get("crops_dir")
+                if crops_dir:
+                    fresh_crop = crop_and_save_face(frame, f_orig[:4], crops_dir)
+                    if fresh_crop:
+                        crop_filename = fresh_crop
 
             # For standard-mode continuous tracks: stop re-queuing recognition
             # once a face is confirmed known (saves SFace calls); unknown faces
