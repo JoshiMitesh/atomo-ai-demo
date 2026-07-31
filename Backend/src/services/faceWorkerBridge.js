@@ -29,6 +29,7 @@ const STREAM_FRAME_HEIGHT = 720;
 // The line tracker now publishes around three updates per second. A sub-second
 // TTL survives one missed analysis frame but removes departed-face boxes fast.
 const FACE_TTL_MS   = 900;
+const IDENTITY_TTL_MS = 15_000;
 const MAX_FACES_PER_CAMERA = 50;
 
 class FaceWorkerBridge extends EventEmitter {
@@ -41,6 +42,9 @@ class FaceWorkerBridge extends EventEmitter {
     this.starting    = false;
     this.latestStreamResults = new Map(); // camera_id -> { camera_id, camera_name, facesMap: Map(event_uuid -> face), updated_at }
     this.activeStreams = new Set(); // camera_ids with a running stream thread
+    // Recognition must survive a brief missed detector/box update. Keyed by
+    // camera + event UUID so it cannot leak to a different face track.
+    this.recognizedTracks = new Map();
   }
 
   async start() {
@@ -103,6 +107,7 @@ class FaceWorkerBridge extends EventEmitter {
         this.ready = false; this.starting = false; this.proc = null;
         this.activeStreams.clear();
         this.latestStreamResults.clear();
+        this.recognizedTracks.clear();
         for (const [, p] of this.pendingCmds) { clearTimeout(p.timer); p.reject(new Error('face_worker.py died')); }
         this.pendingCmds.clear();
         this.emit('exit', code);
@@ -136,6 +141,12 @@ class FaceWorkerBridge extends EventEmitter {
     if (entry.facesMap.size > MAX_FACES_PER_CAMERA) {
       const oldestFirst = [...entry.facesMap.entries()].sort((a, b) => a[1]._ts - b[1]._ts);
       for (let i = 0; i < oldestFirst.length - MAX_FACES_PER_CAMERA; i++) entry.facesMap.delete(oldestFirst[i][0]);
+    }
+    const prefix = `${entry.camera_id}:`;
+    for (const [key, identity] of this.recognizedTracks) {
+      if (key.startsWith(prefix) && now - identity._ts > IDENTITY_TTL_MS) {
+        this.recognizedTracks.delete(key);
+      }
     }
   }
 
@@ -181,19 +192,32 @@ class FaceWorkerBridge extends EventEmitter {
       if (existing && msg.box) {
         existing.box = msg.box;
         existing._ts = Date.now();   // refresh TTL so the face stays visible
+        if (existing.is_known && existing.match) {
+          const cacheKey = `${msg.camera_id}:${msg.event_uuid}`;
+          this.recognizedTracks.set(cacheKey, {
+            ...(this.recognizedTracks.get(cacheKey) || {}),
+            is_known: true,
+            match: existing.match,
+            score: existing.score,
+            embedding: existing.embedding,
+            crop_filename: existing.crop_filename,
+            _ts: Date.now(),
+          });
+        }
       } else if (msg.box) {
+        const cached = this.recognizedTracks.get(`${msg.camera_id}:${msg.event_uuid}`);
         // In tripwire mode a box exists before an event does. Keep this
         // overlay-only entry local; stream_detect is still emitted only when
         // the tracked face crosses the configured line.
         entry.facesMap.set(msg.event_uuid, {
           event_uuid: msg.event_uuid,
           box: msg.box,
-          crop_filename: null,
-          is_known: false,
-          match: null,
-          score: 0,
+          crop_filename: cached?.crop_filename || null,
+          is_known: Boolean(cached?.is_known),
+          match: cached?.match || null,
+          score: cached?.score || 0,
           detection_score: 0,
-          embedding: null,
+          embedding: cached?.embedding || null,
           gender: null,
           status: 'tracking',
           _ts: Date.now(),
@@ -220,6 +244,16 @@ class FaceWorkerBridge extends EventEmitter {
         status:        'recognized',
       };
       entry.facesMap.set(msg.event_uuid, merged);
+      if (merged.is_known && merged.match) {
+        this.recognizedTracks.set(`${msg.camera_id}:${msg.event_uuid}`, {
+          is_known: true,
+          match: merged.match,
+          score: merged.score,
+          embedding: merged.embedding,
+          crop_filename: merged.crop_filename,
+          _ts: Date.now(),
+        });
+      }
       entry.updated_at = Date.now();
       this._pruneFaces(entry);
       const { _ts, ...publicFace } = merged;
