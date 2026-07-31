@@ -75,6 +75,19 @@ const { broadcast } = require('../store/websocketBroadcast');
 const activeEventUuids = new Map();
 const recentFaceDetections = new Map();
 const DUPLICATE_EVENT_WINDOW_MS = 5_000;
+const ACTIVE_EVENT_TTL_MS = 2 * 60_000;
+const MAX_ACTIVE_EVENT_LINKS = 2_000;
+
+function rememberActiveEvent(eventUuid, eventId, now = Date.now()) {
+  if (!eventUuid || !eventId) return;
+  activeEventUuids.set(eventUuid, { eventId, at: now });
+  for (const [uuid, link] of activeEventUuids) {
+    if (now - Number(link?.at || 0) > ACTIVE_EVENT_TTL_MS) activeEventUuids.delete(uuid);
+  }
+  while (activeEventUuids.size > MAX_ACTIVE_EVENT_LINKS) {
+    activeEventUuids.delete(activeEventUuids.keys().next().value);
+  }
+}
 
 function boxesRepresentSameFace(a, b) {
   if (!Array.isArray(a) || !Array.isArray(b) || a.length < 4 || b.length < 4) return false;
@@ -99,7 +112,7 @@ bridge.on('stream_detect', (msg) => {
   const duplicate = recent.find((item) => boxesRepresentSameFace(item.box, msg.box));
   if (duplicate) {
     // Link recognition for the replacement track to the existing event.
-    activeEventUuids.set(msg.event_uuid, duplicate.eventId);
+    rememberActiveEvent(msg.event_uuid, duplicate.eventId, now);
     recentFaceDetections.set(msg.camera_id, recent);
     return;
   }
@@ -114,7 +127,7 @@ bridge.on('stream_detect', (msg) => {
     msg.camera_name || msg.camera_id
   );
   
-  activeEventUuids.set(msg.event_uuid, savedEvent.id);
+  rememberActiveEvent(msg.event_uuid, savedEvent.id, now);
   recent.push({ box: msg.box, eventId: savedEvent.id, at: now });
   recentFaceDetections.set(msg.camera_id, recent);
   
@@ -128,11 +141,10 @@ bridge.on('stream_detect', (msg) => {
 
 // When recognition completes, update the event with identified person
 bridge.on('stream_recognize', (face) => {
-  const eventId = activeEventUuids.get(face.event_uuid);
+  const activeLink = activeEventUuids.get(face.event_uuid);
+  const eventId = activeLink?.eventId || activeLink;
   
   if (eventId) {
-    activeEventUuids.delete(face.event_uuid);
-    
     let personId = 'UNKNOWN';
     let personName = 'UNKNOWN';
     let isKnown = !!face.is_known;
@@ -141,9 +153,13 @@ bridge.on('stream_recognize', (face) => {
     if (isKnown && face.match) {
       personId = face.match.person_id;
       personName = face.match.name;
+      // Recognition is final only after a known identity is found. Keeping this
+      // link for UNKNOWN retries lets a later, clearer frame upgrade the event.
+      activeEventUuids.delete(face.event_uuid);
     } 
     // If unknown, cluster and add to profile
     else if (face.embedding) {
+      rememberActiveEvent(face.event_uuid, eventId);
       try {
         const cluster = clusterStore.ingestUnknownFace({
           embedding:     face.embedding,
