@@ -732,5 +732,38 @@ module.exports = {
       console.log(`[DB Maintenance] Cleaned up ${removedCount} duplicate auto-learned photos.`);
     }
     return removedCount;
+  },
+
+  resetAll() {
+    const cleanData = {
+      persons: [],
+      photos: [],
+      events: [],
+      cameras: [],
+      clusters: [],
+      cluster_counter: 0
+    };
+    writeDB(cleanData);
+    
+    if (fs.existsSync(UPLOADS_DIR)) {
+      try {
+        const uploadFiles = fs.readdirSync(UPLOADS_DIR);
+        uploadFiles.forEach(f => {
+          try { fs.unlinkSync(path.join(UPLOADS_DIR, f)); } catch (e) {}
+        });
+      } catch (e) {}
+    }
+    
+    if (fs.existsSync(CROPS_DIR)) {
+      try {
+        const cropFiles = fs.readdirSync(CROPS_DIR);
+        cropFiles.forEach(f => {
+          try { fs.unlinkSync(path.join(CROPS_DIR, f)); } catch (e) {}
+        });
+      } catch (e) {}
+    }
+    
+    console.log('[DB Reset] Successfully wiped all persons, photos, events, cameras, and clusters.');
+    return true;
   }
 };
