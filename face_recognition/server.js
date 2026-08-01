@@ -1168,6 +1168,29 @@ app.delete('/api/events', (req, res) => {
   res.json({ success });
 });
 
+// System Full Reset API
+app.delete('/api/reset-all', async (req, res) => {
+  try {
+    const cameras = db.getCameras();
+    for (const cam of cameras) {
+      if (cam.is_active) {
+        await stopCameraStream(cam);
+      }
+    }
+    
+    db.resetAll();
+    sendCandidatesToPython();
+    broadcastDatabaseUpdate();
+    broadcast({ event: 'clusters_updated' });
+    broadcast({ event: 'events_cleared' });
+    broadcast({ event: 'cameras_updated', data: [] });
+    
+    res.json({ success: true, message: 'All cameras, clusters, persons, photos, and events have been completely reset.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Settings Update API
 app.post('/api/settings', async (req, res) => {
   const { threshold, dis_type } = req.body;
