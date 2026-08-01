@@ -1,0 +1,642 @@
+{
+  "info": {
+    "_postman_id": "b9f7a812-3c4d-4e5f-a6b7-8c9d0e1f2a3b",
+    "name": "Face Recognition AI System API",
+    "description": "Complete REST API Postman collection for Face Recognition & Surveillance System including RTSP Camera Streams, Line-Crossing, Face Enrollment, Cluster Discovery, and Event Logging.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Registered Profiles (Persons)",
+      "item": [
+        {
+          "name": "Get All Persons",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/persons",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "persons"
+              ]
+            },
+            "description": "Retrieve all registered person profiles along with their enrolled photo templates."
+          }
+        },
+        {
+          "name": "Create Person Profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alex Johnson\",\n  \"gender\": \"Male\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/persons",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "persons"
+              ]
+            },
+            "description": "Create a new person profile record."
+          }
+        },
+        {
+          "name": "Delete Person Profile",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/persons/:person_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "persons",
+                ":person_id"
+              ],
+              "variable": [
+                {
+                  "key": "person_id",
+                  "value": "mrn4vfstwj9ef",
+                  "description": "Target person ID"
+                }
+              ]
+            },
+            "description": "Delete a person profile and all associated photo templates from storage."
+          }
+        },
+        {
+          "name": "Upload Photos for Person",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "photos",
+                  "type": "file",
+                  "src": [],
+                  "description": "One or more facial image files (JPEG/PNG)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/persons/:person_id/photos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "persons",
+                ":person_id",
+                "photos"
+              ],
+              "variable": [
+                {
+                  "key": "person_id",
+                  "value": "mrn4vfstwj9ef",
+                  "description": "Target person ID"
+                }
+              ]
+            },
+            "description": "Upload and enroll one or multiple face photos for an existing person profile."
+          }
+        },
+        {
+          "name": "Upload Video Scan for Enrollment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "video",
+                  "type": "file",
+                  "src": [],
+                  "description": "Short face scan video file (MP4/WEBM)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/persons/:person_id/video",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "persons",
+                ":person_id",
+                "video"
+              ],
+              "variable": [
+                {
+                  "key": "person_id",
+                  "value": "mrn4vfstwj9ef",
+                  "description": "Target person ID"
+                }
+              ]
+            },
+            "description": "Extract frames dynamically from a short video scan to auto-enroll unique facial angles."
+          }
+        },
+        {
+          "name": "Delete Person Photo Template",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/photos/:photo_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "photos",
+                ":photo_id"
+              ],
+              "variable": [
+                {
+                  "key": "photo_id",
+                  "value": "photo_12345",
+                  "description": "Target photo ID"
+                }
+              ]
+            },
+            "description": "Delete a single enrolled photo template from a person profile."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Camera Streams & Line Crossing",
+      "item": [
+        {
+          "name": "Get All Cameras",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cameras",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cameras"
+              ]
+            },
+            "description": "List all configured RTSP streams and their active status."
+          }
+        },
+        {
+          "name": "Add RTSP Camera Stream",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Main Entrance Cam\",\n  \"rtsp_url\": \"rtsp://192.168.1.100:554/stream1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cameras",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cameras"
+              ]
+            },
+            "description": "Register a new RTSP video stream source."
+          }
+        },
+        {
+          "name": "Toggle Camera Stream Active Status",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cameras/:camera_id/toggle",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cameras",
+                ":camera_id",
+                "toggle"
+              ],
+              "variable": [
+                {
+                  "key": "camera_id",
+                  "value": "cam_12345",
+                  "description": "Target camera ID"
+                }
+              ]
+            },
+            "description": "Start or stop AI face analysis for a specific RTSP stream."
+          }
+        },
+        {
+          "name": "Update Line Crossing Settings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"line_crossing_enabled\": true,\n  \"line_y\": 0.6,\n  \"line_direction\": \"in\",\n  \"line_x_start\": 0.0,\n  \"line_x_end\": 1.0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cameras/:camera_id/line-settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cameras",
+                ":camera_id",
+                "line-settings"
+              ],
+              "variable": [
+                {
+                  "key": "camera_id",
+                  "value": "cam_12345",
+                  "description": "Target camera ID"
+                }
+              ]
+            },
+            "description": "Configure virtual line position, span, and direction for entry counting/detection."
+          }
+        },
+        {
+          "name": "Upload Mock Video Loop Stream",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "video",
+                  "type": "file",
+                  "src": [],
+                  "description": "Sample video file to loop as RTSP stream"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cameras/upload-mock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cameras",
+                "upload-mock"
+              ]
+            },
+            "description": "Upload a video file to create a simulated RTSP camera stream on MediaMTX."
+          }
+        },
+        {
+          "name": "Delete Camera",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cameras/:camera_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cameras",
+                ":camera_id"
+              ],
+              "variable": [
+                {
+                  "key": "camera_id",
+                  "value": "cam_12345",
+                  "description": "Target camera ID"
+                }
+              ]
+            },
+            "description": "Delete a registered camera configuration."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Real-Time Events & Logging",
+      "item": [
+        {
+          "name": "Get Recent Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events?limit=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "description": "Number of events to retrieve"
+                }
+              ]
+            },
+            "description": "Retrieve recent face detection and recognition events."
+          }
+        },
+        {
+          "name": "Move UNKNOWN Event to Registered Person",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personId\": \"mrn4vfstwj9ef\",\n  \"name\": \"mitesh\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/:eventId/move",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                ":eventId",
+                "move"
+              ],
+              "variable": [
+                {
+                  "key": "eventId",
+                  "value": "ev_12345",
+                  "description": "Target event ID"
+                }
+              ]
+            },
+            "description": "Assign an UNKNOWN detection event photo to a registered person profile."
+          }
+        },
+        {
+          "name": "Clear All Events",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "events"
+              ]
+            },
+            "description": "Clear all recorded face detection events and crop images."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Static Photo Analyzer",
+      "item": [
+        {
+          "name": "Recognize Faces in Image File",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "photo",
+                  "type": "file",
+                  "src": [],
+                  "description": "Image file containing one or more faces"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/recognize",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "recognize"
+              ]
+            },
+            "description": "Perform face detection, landmark alignment, and profile matching on a static photo file."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Discovered Clusters (Auto-Grouped Profiles)",
+      "item": [
+        {
+          "name": "Get All Clusters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/clusters",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clusters"
+              ]
+            },
+            "description": "Retrieve auto-grouped clusters of unknown faces."
+          }
+        },
+        {
+          "name": "Enroll Cluster as Registered Person",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sarah Connors\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/clusters/:cluster_id/enroll",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clusters",
+                ":cluster_id",
+                "enroll"
+              ],
+              "variable": [
+                {
+                  "key": "cluster_id",
+                  "value": "cluster_1234",
+                  "description": "Target cluster ID"
+                }
+              ]
+            },
+            "description": "Convert an automatically grouped cluster of unknown faces into a named person profile."
+          }
+        },
+        {
+          "name": "Move Cluster Photo to Person",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personId\": \"mrn4vfstwj9ef\",\n  \"name\": \"mitesh\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/clusters/:clusterId/photos/:photoId/move",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clusters",
+                ":clusterId",
+                "photos",
+                ":photoId",
+                "move"
+              ],
+              "variable": [
+                {
+                  "key": "clusterId",
+                  "value": "cluster_1234",
+                  "description": "Cluster ID"
+                },
+                {
+                  "key": "photoId",
+                  "value": "photo_999",
+                  "description": "Photo ID in cluster"
+                }
+              ]
+            },
+            "description": "Move a single face photo from an unknown cluster into a registered person profile."
+          }
+        },
+        {
+          "name": "Delete Cluster",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/clusters/:cluster_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clusters",
+                ":cluster_id"
+              ],
+              "variable": [
+                {
+                  "key": "cluster_id",
+                  "value": "cluster_1234",
+                  "description": "Target cluster ID"
+                }
+              ]
+            },
+            "description": "Delete a discovered face cluster."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. System Settings",
+      "item": [
+        {
+          "name": "Update Matching Threshold & Distance Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"threshold\": 0.5,\n  \"dis_type\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "settings"
+              ]
+            },
+            "description": "Update global face recognizer confidence threshold (0.50 recommended for Cosine)."
+          }
+        }
+      ]
+    }
+  ]
+}

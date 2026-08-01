@@ -1,0 +1,10 @@
+node_modules/
+data/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+*.log
+
+# Local MediaMTX config may contain RTSP credentials
+mediamtx.yml
